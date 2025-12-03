@@ -37,33 +37,45 @@ def test_loader_registry_has_expected_methods(registry_cls, method_name):
 def test_register_decorator_registers_object_in_registry(registry_instance):
     """Декоратор `register` должен регистрировать декорированные объекты в внутренний реестр."""
 
-    @registry_instance.register("identificator")
+    def test_fn(source):
+        return False
+
+    @registry_instance.register(test_fn)
     class TestClass:
         ...
 
-    assert registry_instance._registry["identificator"] == TestClass, (
-        "Убедитесь, что декоратор `register` класса `LoaderRegistry` регистрирует декорированный класс"
+    assert registry_instance._registry[TestClass] == test_fn, (
+        "Убедитесь, что декоратор `register` класса `LoaderRegistry` регистрирует стратегию и класс"
         " в реестре `_registry`"
     )
 
 
 def test_get_loader_method_returns_object_from_registry(registry_instance):
-    """Метод get_loader должен возвращать ранее зарегистрированные объекты"""
+    """
+    Метод get_loader должен возвращать ранее зарегистрированные объекты при условии выполнения определённых
+    в стратегии применимости загрузчика условий.
+    """
 
-    @registry_instance.register("identificator")
+    def test_fn(source):
+        return True
+
+    @registry_instance.register(test_fn)
     class TestClass:
         ...
 
     assert registry_instance.get_loader("identificator") == TestClass, (
         "Убедитесь, что метод `get_loader` возвращает декорированный ранее объект"
-        " по переданному декоратору идентификатору"
+        " в случае если функция стратегия возвращает `True`."
     )
 
 
-def test_get_loader_method_raises_ValueError_on_unknown_ident(registry_instance):
+def test_get_loader_method_raises_ValueError_on_unknown_source(registry_instance):
     """Метод get_loader должен обрабывать неизвестные значения"""
 
-    @registry_instance.register("identificator")
+    def test_fn(source):
+        return False
+
+    @registry_instance.register(test_fn)
     class TestClass:
         ...
 
@@ -71,18 +83,18 @@ def test_get_loader_method_raises_ValueError_on_unknown_ident(registry_instance)
         registry_instance.get_loader("wrong")
         assert False, (
             "Убедитесь, что метод `get_loader` выбрасывает ошибку `ValueError`"
-            "при получении неизвестного идентификатора"
+            "при получении неизвестного источника."
     )
 
-@pytest.mark.parametrize("loader, ident", [
-    (TextFileLoader, ".txt"),
-    (TSVFileLoader, ".tsv"),
-    (JsonFileLoader, ".json"),
-    (JsonNetworkLoader, "http"),
+@pytest.mark.parametrize("loader, source", [
+    (TextFileLoader, "file.txt"),
+    (TSVFileLoader, "words.tsv"),
+    (JsonFileLoader, "webwords.json"),
+    (JsonNetworkLoader, "http://localhost:8001/words"),
 ])
-def test_users_registry_has_existing_loaders_registered(loader, ident):
+def test_users_registry_has_existing_loaders_registered(loader, source):
     try:
-        assert loader_registry.get_loader(ident) == loader
+        assert loader_registry.get_loader(source) == loader
     except Exception as err:
         assert False, (
             f"Убедитесь что отметили класс загрузчика {loader.__name__} идентификатором {ident}"
