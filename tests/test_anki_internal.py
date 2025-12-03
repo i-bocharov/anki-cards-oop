@@ -14,6 +14,14 @@ def anki_instance(anki_cls):
     return anki_cls()
 
 
+@pytest.fixture()
+def anki_with_words(anki_instance):
+    anki_instance.add_word("hello", "привет")
+    anki_instance.add_word("world", "мир")
+    anki_instance.add_word("python", "питон")
+    return anki_instance
+
+
 class TestAnkiClassInitialization:
     """Коллекция тест-кейсов для проверки инициализатора класса Anki."""
 
@@ -254,6 +262,32 @@ class TestAnkiClassDocstrings:
             "Для метода `get_words` класса `Anki` должен быть разработан докстринг"
         )
 
+    def test_Anki_class_get_random_word_has_docstring(self, anki_cls):
+        assert anki_cls.get_random_word.__doc__, (
+            "Для метода `get_random_word` класса `Anki` должен быть разработан докстринг"
+        )
+        
+    def test_Anki_class_check_translation_has_docstring(self, anki_cls):
+        docstring = anki_cls.check_translation.__doc__
+        assert docstring, (
+            "Для метода `check_translation` класса `Anki` должен быть разработан докстринг"
+        )
+        assert "word" in docstring, (
+            "В докстринге метода `check_translation` должен быть описаны параметр `word`"
+        )
+        assert "translation" in docstring, (
+            "В докстринге метода `check_translation` должен быть описаны параметр `translation`"
+        )
+
+    def test_Anki_class_get_translation_has_docstring(self, anki_cls):
+        docstring = anki_cls.get_translation.__doc__
+        assert docstring, (
+            "Для метода `get_translation` класса `Anki` должен быть разработан докстринг"
+        )
+        assert "word" in docstring, (
+            "В докстринге метода `get_translation` должен быть описаны параметр `word`"
+        )
+
 
 class TestAnkiMagicMethods:
     """Коллекция тест-кейсов для проверки переопределённых магических методов класса `Anki`"""
@@ -309,6 +343,88 @@ class TestAnkiMagicMethods:
             )
 
 
+class TestAnkiGetWordMethod:
+
+    def test_get_random_word_raises_ValueError_if_no_words_exist(self, anki_instance):
+        """Проверяет, что при отсутвии слов в игре, метод `get_random_word()` выбросит ошибку"""
+        with pytest.raises(ValueError):
+            anki_instance.get_random_word()
+            assert False, (
+                "Метод `get_random_word` должен выбрасывать исключение `ValueError` при отсутствии слов."
+            )
+
+    def test_get_random_word_returns_random_word(self, anki_with_words):
+        """Проверяет, что метод `get_random_word()` выбирает случайное слово"""
+        words = set()
+        for _ in range(100):
+            words.add(anki_with_words.get_random_word())
+
+        assert len(words) > 1, (
+            "Метод `get_word()` должен возвращать случайное слово из `_words`."
+        )
+
+        assert len(words & anki_with_words.get_words().keys()) == len(words), (
+            "В итоговую выборку должны были попасть все слова из `_words`. Проверьте действительно ли слова возвращаются случайно а также"
+            " используемый алгоритм случайного выбора."
+        )
 
 
+class TestAnkiCheckTranslationMethod:
 
+    @pytest.mark.parametrize("word, translation",
+        [
+            ("HeLlo  ", "  Привет  "),
+            ("\tWorld", "  Мир\t "),
+            ("PYTHON", "питон"),
+        ]
+    )
+    def test_check_translation_method_normalizes_input(self, anki_with_words, word, translation):
+        """Проверяет, что метод `check_translation` использует нормализованное представление перевода и слова для проверки перевода"""
+        assert anki_with_words.check_translation(word, translation) is True, (
+            "Метод `check_translation` должен использовать номрализованное представление слова и перевода"
+        )
+
+    @pytest.mark.parametrize("word, translation",
+        [
+            ("Hello", "  Пока  "),
+            ("\tWorld", "  Peace\t "),
+            ("PYTHON", "анаконда"),
+        ]
+    )
+    def test_check_translation_method_checks_correctness_of_a_translation(self, anki_with_words, word, translation):
+        """Проверяет, что метод `check_translation` правильно определяет корректность перевода"""
+        assert anki_with_words.check_translation(word, translation) is False, (
+            "Метод `check_translation` должен правильно проверять корректность пользовательского перевода"
+        )
+
+    def test_check_translation_method_raises_for_unexistent_word(self, anki_instance):
+        """Проверяет, что в случае отсутсвия слова, для которого запрошена проверка перевода, метод `check_translation` выбросит исключение"""
+        with pytest.raises(ValueError):
+            anki_instance.check_translation("abc", "abc")
+            assert False, (
+                "Метод `check_translation` должен выбрасывать исключение `ValueError` при отсутствии слова `word` в хранилище."
+            )
+
+
+class TestAnkiGetTranslationMethod:
+
+    @pytest.mark.parametrize("word, translation",
+        [
+            ("HeLlo  ", "привет"),
+            ("\tWorld", "мир"),
+            ("PYTHON", "питон"),
+        ]
+    )
+    def test_get_translation_method_returns_translation_for_normalized_input(self, anki_with_words, word, translation):
+        """Проверяет, что метод `get_translation` использует нормализованное представление слова для поиска перевода"""
+        assert anki_with_words.get_translation(word) == translation, (
+            "Метод `get_translation` должен использовать нормализованное представление слова"
+        )
+
+    def test_get_translation_method_raises_for_unexistent_word(self, anki_instance):
+        """Проверяет, что в случае отсутсвия слова, для которого запрошена проверка перевода, метод `check_translation` выбросит исключение"""
+        with pytest.raises(ValueError):
+            anki_instance.get_translation("abc")
+            assert False, (
+                "Метод `check_translation` должен выбрасывать исключение `ValueError` при отсутствии слова `word` в хранилище."
+            )
