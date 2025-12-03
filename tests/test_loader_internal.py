@@ -39,8 +39,6 @@ def json_network_loader_instance(json_network_loader_cls):
 def json_loader_instance(json_loader_cls):
     return json_loader_cls()
 
-
-
 @pytest.fixture()
 def empty_temp_file():
     with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
@@ -316,3 +314,4 @@ class TestJsonNetworkLoader:
     def test_json_network_loader_save_words_is_stub(self, json_network_loader_instance):
         """Проверяем, что save_words является заглушкой"""
         json_network_loader_instance.save_words({"word": "translation"})
+
