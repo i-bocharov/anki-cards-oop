@@ -253,3 +253,62 @@ class TestAnkiClassDocstrings:
         assert anki_cls.get_words.__doc__, (
             "Для метода `get_words` класса `Anki` должен быть разработан докстринг"
         )
+
+
+class TestAnkiMagicMethods:
+    """Коллекция тест-кейсов для проверки переопределённых магических методов класса `Anki`"""
+
+    def test_anki_has_custom_str_method(self, anki_cls):
+        """Проверяет, что у класса Anki переопределён метод __str__"""
+        assert "__str__" in anki_cls.__dict__, (
+            "Класс Anki должен переопределять метод __str__"
+        )
+
+    def test_anki_has_custom_contains_method(self, anki_cls):
+        """Проверяет, что у класса Anki переопределён метод __contains__"""
+        assert '__contains__' in anki_cls.__dict__, (
+            "Класс Anki должен переопределять метод __contains__"
+        )
+
+    def test_str_method_returns_custom_string(self, anki_instance):
+        """Проверяет, что __str__ возвращает информативную строку"""
+        result = str(anki_instance)
+
+        assert not result.startswith("<anki.anki.Anki object at"), (
+            "Метод __str__ должен возвращать кастомное представление"
+        )
+
+    def test_anki_custom_contains_method_uses_normalized_words(self, anki_cls):
+        """
+        Проверяет, что метод `__contains__` использует нормализованные слова
+        для поиска наличия слов в словаре `_words`.
+        """
+        anki = anki_cls(words={"hello": "привет", "world": "мир"})
+
+        assert "HELLO" in anki, (
+            "Метод `__contains__` класса `Anki` должен быть регистронезависимым."
+        )
+        assert "hello" in anki, (
+            "Метод `__contains__` вернул некорректные результаты для существующего слова"
+        )
+        assert "PYTHON" not in anki, (
+            "Метод `__contains__` вернул некорректные результаты для несуществующего слова"
+        )
+
+    @pytest.mark.parametrize('invalid_input', [
+        1,
+        [],
+        set()
+    ])
+    def test_anki_custom_contains_raises_ValueError_for_incorrect_input(self, invalid_input, anki_instance):
+        """Проверят, что метод `__contains__` выбросит исключение `ValueError` в случае нестроковых входных данных"""
+        with pytest.raises(ValueError):
+            invalid_input in anki_instance
+            assert False, (
+                "Метод `__contains__` должен выбрасывать исключение `ValueError` для нестроковых данных."
+            )
+
+
+
+
+
