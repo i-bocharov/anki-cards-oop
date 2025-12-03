@@ -254,9 +254,12 @@ def test_TextUI_class_train_until_mistake_method(ui_cls, anki_cls, monkeypatch, 
     check_results = iter([True, True, False])
 
     anki_mock = Mock()
-    anki_mock.get_random_word.return_value = "hello"
-    anki_mock.check_translation.side_effect = [True, True, False]
-    anki_mock.last_session_stats = {"correct_answers": 100500, "total_time": 999.99}
+    training_session_mock = Mock()
+    training_session_mock.get_random_word.return_value = "hello"
+    training_session_mock.check_translation.side_effect = [True, True, False]
+    training_session_mock.get_stat.return_value = {"correct_answers": 100500, "total_time": 999.99}
+
+    anki_mock.start_zero_mistakes_training.return_value = training_session_mock
 
     ui = ui_cls(anki_mock)
 
@@ -283,7 +286,7 @@ def test_TextUI_class_train_until_mistake_method(ui_cls, anki_cls, monkeypatch, 
     )
 
     try:
-        anki_mock.start_session.assert_called()
+        anki_mock.start_zero_mistakes_training.assert_called()
     except AssertionError:
         assert False, (
         "Метод `start_session` должен использовать методы экземпляра класса `Anki` для начала тренировки"
@@ -324,17 +327,19 @@ def test_TextUI_class_main_loop_method_handles_user_choices(ui_cls, anki_with_wo
     show_words_mock = Mock()
     train_until_mistake_mock = Mock()
     find_translation_mock = Mock()
+    train_until_time_runs_out_mock = Mock()
 
     monkeypatch.setattr(ui_cls, "start_game", start_game_mock)
     monkeypatch.setattr(ui_cls, "add_words", add_words_mock)
     monkeypatch.setattr(ui_cls, "show_words", show_words_mock)
     monkeypatch.setattr(ui_cls, "train_until_mistake", train_until_mistake_mock)
     monkeypatch.setattr(ui_cls, "find_translation", find_translation_mock)
+    monkeypatch.setattr(ui_cls, "train_until_time_runs_out", train_until_time_runs_out_mock)
 
     ui = ui_cls(anki_with_words)
 
-    # Старт игры, добавление слов, тренировка, поиск перевода, показ всех слов, выход
-    inputs = ["1", "2", "3", "4", "5", exit_choice_finder(ui)]  
+    # Последовательный перебор пунктов меню
+    inputs = ["1", "2", "3", "4", "5", "6", exit_choice_finder(ui)]  
     inputs = iter(inputs)
 
     monkeypatch.setattr('builtins.input', lambda x=None: next(inputs))
@@ -380,6 +385,12 @@ def test_TextUI_class_main_loop_method_handles_user_choices(ui_cls, anki_with_wo
             f"Во время проверки метода `main_loop`, метод `find_translation` был вызван {find_translation.call_count} раз, а должен был всего 1 раз."
         )
 
+    try:
+        train_until_time_runs_out_mock.assert_called_once()
+    except AssertionError:
+        assert False, (
+            f"Во время проверки метода `main_loop`, метод `train_until_time_runs_out` был вызван {train_until_time_runs_out_mock.call_count} раз, а должен был всего 1 раз."
+        )
 
 def test_TextUI_class_find_translation_method_known_word(ui_cls, anki_instance, monkeypatch, capsys):
     """Проверяет работу метода `find_translation` - должен возвращать перевод для существующего слова"""
@@ -433,3 +444,70 @@ def test_TextUI_class_find_translation_method_unknown_word(ui_cls, anki_instance
     assert "привет" not in output, (
         "Метод `find_translation` не должен выводить перевод для несуществующего слова"
     )
+
+
+def test_TextUI_class_train_until_time_run_out_method(ui_cls, anki_cls, monkeypatch, capsys):
+    """
+    Проверяет работоспособность метода `train_until_mistake`. По сути только использование нужных методов
+    и выход из тренировки при некорректном переводе.
+    """
+    check_results = iter([True, True, False])
+
+
+
+    anki_mock = Mock()
+    training_session_mock = Mock()
+    training_session_mock.get_random_word.return_value = "hello"
+    training_session_mock.active = True
+
+    def check_translation():
+        # меняем активности сессии на False спустя пару попыток
+        # имитируя истечение времени
+        nonlocal training_session_mock
+        for o in [True, True, False]:
+            training_session_mock.active = o
+            yield o
+
+    check_translation_iter = iter(check_translation())
+
+    training_session_mock.check_translation.side_effect = lambda w, t: next(check_translation_iter)
+
+    training_session_mock.get_stat.return_value = {"correct_answers": 100500, "total_time": 999.99}
+
+    anki_mock.start_time_limited_training.return_value = training_session_mock
+
+    ui = ui_cls(anki_mock)
+
+    # Время игры, ответы
+    inputs = ["5"] + ["translation"] * 3
+    inputs = iter(inputs)
+
+    monkeypatch.setattr('builtins.input', lambda x=None: next(inputs))
+
+    try:
+        ui.train_until_time_runs_out()
+    except StopIteration:
+        assert False, (
+            "Выполнение метода `train_until_time_runs_out` должно прекращаться"
+            " после истечения времени игры"
+        )
+
+    try:
+        anki_mock.start_time_limited_training.assert_called_with(5.0)
+    except AssertionError:
+        assert False, (
+            "Убедитесь, что при начале тренировки на время при начале тренировки в метод"
+            " `start_time_limited_training` передаётся переданное пользователем время"
+            " игры как `float`"
+        )
+
+    output = capsys.readouterr().out
+
+    assert output, "Метод `train_until_time_runs_out` должен выводить информацию для пользователя в стандартный поток вывода."
+    assert "100500" in output, (
+        "Метод `train_until_time_runs_out` должен выводить информацию о количестве успешных ответов."
+    )
+    assert "999.99" in output, (
+        "Метод `train_until_time_runs_out` должен выводить информацию о времени игры."
+    )
+
