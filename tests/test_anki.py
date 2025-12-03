@@ -17,9 +17,16 @@ def anki_instance(anki_cls):
 class TestAnkiClassInitialization:
     """Коллекция тест-кейсов для проверки инициализатора класса Anki."""
 
+
+    def test_Anki_instanse_protected_atribute_words_exist(self, anki_instance):
+        """Атрибут `_words` должен быть защищенным"""
+        assert hasattr(anki_instance, "_words"), "Атрибут _words должен быть защищённым"
+        assert not hasattr(anki_instance, "words")
+
+
     def test_Anki_class_has_no_class_attributes(self, anki_cls):
-        """Атрибут words должен быть только у экземпляров"""
-        assert not hasattr(anki_cls, "words"), (
+        """Атрибут `_words` должен быть только у экземпляров"""
+        assert not hasattr(anki_cls, "_words"), (
             "Атрибут `words` должен определяться при инициализации экземпляра, а не на уровне класса"
         )
 
@@ -34,17 +41,17 @@ class TestAnkiClassInitialization:
     def test_Anki_default_empty_dict(self, anki_cls):
         """По умолчанию words должен быть пустым словарём"""
         anki = anki_cls()
-        assert anki.words == {}, (
+        assert anki._words == {}, (
             "При создании экземпляра класса без параметров, атрибут `words` должен инициализироваться пустым словарём"
         )
-        assert isinstance(anki.words, dict)
+        assert isinstance(anki._words, dict)
 
 
     def test_Anki_default_dict_is_not_shared(self, anki_cls):
         """Разные экземпляры должны иметь разные словари"""
         anki1 = anki_cls()
         anki2 = anki_cls()
-        assert anki1.words is not anki2.words, (
+        assert anki1._words is not anki2._words, (
             "Не используйте изменяемый объект как значение по умолчанию"
         )
 
@@ -53,7 +60,7 @@ class TestAnkiClassInitialization:
         """Должен принимать словарь со строками"""
         valid_words = {"python": "питон", "hello": "привет"}
         anki = anki_cls(words=valid_words)
-        assert anki.words == valid_words, (
+        assert anki._words == valid_words, (
             "При создании экземпляра класса с переданным словарём, атрибут `words` должен инициализироваться переданным словарём"
         )
 
@@ -88,7 +95,7 @@ class TestAnkiClassInitialization:
         """Нормализация слов при инициализации"""
         words = {"  HELLO  ": " ПРИВЕТ ", "WORLD": "  МИР  "}
         anki = anki_cls(words=words)
-        assert anki.words == {"hello": "привет", "world": "мир"}, (
+        assert anki._words == {"hello": "привет", "world": "мир"}, (
             "При инициализации класса `Anki` переданные в словаре `words` ключи и значения должны быть нормализованы."
         )
 
@@ -96,7 +103,7 @@ class TestAnkiClassInitialization:
         """Корректные слова остаются без изменений"""
         words = {"hello": "привет", "world": "мир"}
         anki = anki_cls(words=words)
-        assert anki.words == words, (
+        assert anki._words == words, (
                 "При передаче корректных значений в инит класса `Anki` не должно выполняться никаких преобразований."
         )
 
@@ -107,7 +114,7 @@ class TestAnkiAddWordMethod:
     def test_add_word_normalizes_input(self, anki_instance):
         """Нормализация при добавлении"""
         anki_instance.add_word("  HELLO  ", " ПРИВЕТ ")
-        assert anki_instance.words == {"hello": "привет"}, (
+        assert anki_instance._words == {"hello": "привет"}, (
             "При добавлении слова методом `add_word` должна выполняться нормализация добавляемых слов и переводов"
         )
 
@@ -115,7 +122,7 @@ class TestAnkiAddWordMethod:
         """Добавление нескольких слов"""
         anki_instance.add_word("HELLO", "ПРИВЕТ")
         anki_instance.add_word("WORLD", "МИР")
-        assert anki_instance.words == {
+        assert anki_instance._words == {
             "hello": "привет",
             "world": "мир"
         }, (
@@ -179,4 +186,37 @@ class TestAnkiNormalizeWordMethod:
             assert False, (
                 "Метод `normalize_word` должен выбрасывать исключение `ValueError` для нестроковых значений."
             )
+
+
+class TestAnkiGetWordsMethod:
+    """Коллекция тест-кейсов для тестирования метода `get_words()` класса `Anki`."""
+
+    def test_get_word_method_exists(self, anki_instance):
+        """У класса `Anki` должен быть метод `get_words()`"""
+
+        assert hasattr(anki_instance, 'get_words'), (
+            "У класса `Anki` должен быть определён метод `get_words()`."
+        )
+        assert callable(anki_instance.get_words), (
+            "Атрибут `get_words` класса `Anki` должен быть методом."
+        )
+
+    def test_get_words_return_all_words(self, anki_cls):
+        """Метод `get_words()` класса `Anki` должен возвращать все слова."""
+        anki = anki_cls(words={"HELLO": "ПРИВЕТ"})
+        assert anki.get_words() == {"hello": "привет"}, (
+                "Метод `get_words()` должен возвращать все слова добавленные как при инициализации экземпляра, так и через метод `add_word()`"
+        )
+        anki.add_word("PyThOn", "Питон")
+
+        assert anki.get_words() == {"hello": "привет", "python": "питон"}, (
+                "Метод `get_words()` должен возвращать все слова добавленные как при инициализации экземпляра, так и через метод `add_word()`"
+        )
+        
+    def test_get_words_return_a_copy_of_a_words_dict(self, anki_cls):
+        """Метод `get_words()` класса `Anki` должен возвращать копию словаря `_words`"""
+        anki = anki_cls(words={"HELLO": "ПРИВЕТ"})
+
+        assert anki.get_words() is not anki._words
+
 

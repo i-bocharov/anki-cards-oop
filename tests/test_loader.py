@@ -43,10 +43,17 @@ def loader_with_file(loader_cls, temp_file):
 class TestTextFileLoaderClassInitialization:
     """Набор тест-кейсов для проверки инициализации класса `TextFileLoader`."""
 
+    def test_TextFileLoader_class_has_protected_file_path_attribute(self, loader_with_file):
+        assert not hasattr(loader_with_file, "file_path"), (
+            "Атрибут `file_path` класса `TextFileLoader` должен быть защищённым"
+        )
+        assert hasattr(loader_with_file, "_file_path"), (
+            "Для экземпляра класса `TextFileLoader` должен быть определён защищенный атрибут `_file_path`"
+        )
 
     def test_TextFileLoader_class_has_no_class_attributes(self, loader_cls):
         """Атрибут file_path должен быть только у экземпляров"""
-        assert not hasattr(loader_cls, "file_path"), (
+        assert not hasattr(loader_cls, "_file_path"), (
             "Атрибут `file_path` должен определяться при инициализации экземпляра, а не на уровне класса"
         )
 
@@ -62,10 +69,10 @@ class TestTextFileLoaderClassInitialization:
         """По умолчанию должен использовать './words.txt'"""
         loader = loader_cls()
 
-        assert loader.file_path == Path("./words.txt"), (
+        assert loader._file_path == Path("./words.txt"), (
             "Атрибут `file_path` должен принимать значением по умолчанию \"./words.txt\""
         )
-        assert isinstance(loader.file_path, Path), (
+        assert isinstance(loader._file_path, Path), (
             "Атрибут `file_path` должен инициализироваться объектом класса `pathlib.Path`"
         )
 
@@ -78,10 +85,10 @@ class TestTextFileLoaderClassInitialization:
         except Exception:
             assert False, "Убедитесь, что класс `TextFileLoader` при инициализации принимает параметр `file_path`"
 
-        assert isinstance(loader1.file_path, Path), (
+        assert isinstance(loader1._file_path, Path), (
             "Атрибут `file_path` должен инициализироваться объектом класса `pathlib.Path`"
         )
-        assert isinstance(loader2.file_path, Path), (
+        assert isinstance(loader2._file_path, Path), (
             "Атрибут `file_path` должен инициализироваться объектом класса `pathlib.Path`"
         )
 
@@ -93,10 +100,10 @@ class TestTextFileLoaderClassInitialization:
         except Exception:
             assert False, "Убедитесь, что класс `TextFileLoader` при инициализации принимает параметр `file_path`"
 
-        assert loader.file_path == Path("data/custom_words.txt"), (
+        assert loader._file_path == Path("data/custom_words.txt"), (
             "Атрибут `file_path` должен инициализироваться переданным значением, преобразованным в объект класса `pathlib.Path`"
         )
-        assert isinstance(loader.file_path, Path), (
+        assert isinstance(loader._file_path, Path), (
             "Атрибут `file_path` должен инициализироваться переданным значением, преобразованным в объект класса `pathlib.Path`"
         )
 
