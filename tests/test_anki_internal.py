@@ -342,6 +342,34 @@ class TestAnkiMagicMethods:
                 "Метод `__contains__` должен выбрасывать исключение `ValueError` для нестроковых данных."
             )
 
+    def test_anki_has_iter_method(self, anki_with_words):
+        """Проверяет что метод `__iter__()` был реализован"""
+
+        try:
+            iter(anki_with_words)
+        except TypeError:
+            assert False, "Убедитесь, что реализовали необходимые методы в классе `Anki`, чтобы сделать его итерируемым."
+
+    def test_anki_has_len_method(self, anki_with_words):
+        """Проверяет, что метод `__len__()` был реализован"""
+        try:
+            len(anki_with_words)
+        except TypeError:
+            assert False, "Убедитесь, что реализовали необходимые методы в классе `Anki`, чтобы определить количество слов через вызов `len()`"
+
+    def test_anki_iter_method_returns_words_and_translations(self, anki_with_words):
+        """Проверяет реализацию метода `__iter__()`"""
+        words = {}
+        for word, translation in anki_with_words:
+            words[word] = translation
+
+        assert words == anki_with_words.get_words(), "Убедитесь, что при итерации по классу `Anki` возвращаются все слова."
+
+    def test_anki_len_method_returns_correct_amount(self, anki_with_words):
+        """Проверяет реализацию метода `__len__()`"""
+        assert len(anki_with_words) == len(anki_with_words.get_words()), (
+            "Убедитесь, что вызов `len()` с экземпляром `Anki` возвращает правильное количество слов"
+        )
 
 class TestAnkiGetWordMethod:
 
@@ -428,3 +456,4 @@ class TestAnkiGetTranslationMethod:
             assert False, (
                 "Метод `check_translation` должен выбрасывать исключение `ValueError` при отсутствии слова `word` в хранилище."
             )
+
