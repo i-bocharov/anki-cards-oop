@@ -1,6 +1,6 @@
 import importlib
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, MagicMock, patch
 
 import pytest
 
@@ -160,29 +160,51 @@ def test_TextUI_class_add_words_method(ui_cls, monkeypatch, capsys):
     )
 
 
-def test_TextUI_class_show_words_method(ui_cls, monkeypatch, capsys):
+def test_TextUI_class_show_words_method(ui_cls, anki_cls, monkeypatch, capsys):
     """Проверяет метод `show_words` на предмент выполнения условий: вывода слов в формате "слово - перевод" и использование методов класса `Anki`"""
-    anki_mock = Mock()
-    anki_mock.get_words.return_value = {"hello": "привет", "world": "мир", "python": "питон"}
+    anki_mock = MagicMock()
+    words = {"hello": "привет", "world": "мир", "python": "питон"}
+    anki_mock.__iter__.return_value = iter(words.items())
+    anki_mock.__len__.return_value = len(words)
 
     ui = ui_cls(anki_mock)
 
     ui.show_words()
 
-    output = capsys.readouterr().out
+    output = capsys.readouterr().out.splitlines()
+    
+    try:
+        first_line = output.pop(0)
+    except IndexError:
+        assert False, "Метод `show_words` должен вывести информацию по словам в экземпляре класса `Anki`"
 
-    assert output.splitlines() == ["hello - привет", "world - мир", "python - питон"], (
+    assert str(len(words)) in first_line, "Метод `show_words` должен вывести информацию о количестве слов в первой строчке."
+
+    try:
+        anki_mock.get_words.assert_not_called()
+    except AssertionError:
+        assert False, (
+            "Метод `show_words`не должен использовать метод `get_words()` экземпляра класса `Anki` для получения слов"
+    )
+
+    assert output == ["hello - привет", "world - мир", "python - питон"], (
         "Метод `show_words` должен вывести информацию по словам в экземпляре класса `Anki`"
         " в стандартный поток вывода, в формате \"слово - перевод\""
     )
 
     try:
-        anki_mock.get_words.assert_called()
+        anki_mock.__iter__.assert_called()
     except AssertionError:
         assert False, (
-        "Метод `show_words` должен использовать методы экземпляра класса `Anki` для получения слов"
+            "Метод `show_words` должен использовать цикл `for` для получения всех слов и переводов в классе `Anki`"
     )
 
+    try:
+        anki_mock.__len__.assert_called()
+    except AssertionError:
+        assert False, (
+            "Метод `show_words` должен использовать стандартную функцию `len()` для получения количества слов в `Anki`"
+    )
 
 def test_TextUI_class_main_loop_method_shows_menu(ui_cls, anki_instance, monkeypatch, capsys):
     """Проверяет метод main_loop на предмет вывода меню"""
