@@ -206,6 +206,49 @@ def test_TextUI_class_show_words_method(ui_cls, anki_cls, monkeypatch, capsys):
             "Метод `show_words` должен использовать стандартную функцию `len()` для получения количества слов в `Anki`"
     )
 
+def test_TextUI_class_train_until_mistake_method(ui_cls, anki_cls, monkeypatch, capsys):
+    """
+    Проверяет работоспособность метода `train_until_mistake`. По сути только использование нужных методов
+    и выход из тренировки при некорректном переводе.
+    """
+    check_results = iter([True, True, False])
+
+    anki_mock = Mock()
+    anki_mock.get_random_word.return_value = "hello"
+    anki_mock.check_translation.side_effect = [True, True, False]
+    anki_mock.last_session_stats = {"correct_answers": 100500, "total_time": 999.99}
+
+    ui = ui_cls(anki_mock)
+
+    inputs = ["translation"] * 3
+    inputs = iter(inputs)
+
+    monkeypatch.setattr('builtins.input', lambda x=None: next(inputs))
+
+    try:
+        ui.train_until_mistake()
+    except StopIteration:
+        assert False, (
+            "Выполнение метода `train_until_mistake` должно прекращаться после ввода некорректного перевода."
+        )
+
+    output = capsys.readouterr().out
+
+    assert output, "Метод `train_until_mistake` должен выводить информацию для пользователя в стандартный поток вывода."
+    assert "100500" in output, (
+        "Метод `train_until_mistake` должен выводить информацию о количестве успешных ответов."
+    )
+    assert "999.99" in output, (
+        "Метод `train_until_mistake` должен выводить информацию о времени игры."
+    )
+
+    try:
+        anki_mock.start_session.assert_called()
+    except AssertionError:
+        assert False, (
+        "Метод `start_session` должен использовать методы экземпляра класса `Anki` для начала тренировки"
+    )
+
 def test_TextUI_class_main_loop_method_shows_menu(ui_cls, anki_instance, monkeypatch, capsys):
     """Проверяет метод main_loop на предмет вывода меню"""
     ui = ui_cls(anki_instance)
@@ -237,10 +280,12 @@ def test_TextUI_class_main_loop_method_handles_user_choices(ui_cls, anki_instanc
     start_game_mock = Mock()
     add_words_mock = Mock()
     show_words_mock = Mock()
+    train_until_mistake_mock = Mock()
 
     monkeypatch.setattr(ui, "start_game", start_game_mock)
     monkeypatch.setattr(ui, "add_words", add_words_mock)
     monkeypatch.setattr(ui, "show_words", show_words_mock)
+    monkeypatch.setattr(ui, "train_until_mistake", train_until_mistake_mock)
 
     # Старт игры, добавление слов, нереализованная фича, показ всех слов, выход
     inputs = ["1", "2", "3", "4", "5"]  
@@ -254,11 +299,6 @@ def test_TextUI_class_main_loop_method_handles_user_choices(ui_cls, anki_instanc
         assert False, (
             "Выполнение метода `main_loop` должно прекращаться после ввода пункта меню для выхода."
         )
-    output = capsys.readouterr().out
-    assert "Данная функциональность ещё не реализована" in output, (
-        "При выборе пункта меню \"Тренировка на время\" должна выводиться заглушка \"Данная функциональность ещё не реализована\"."
-    )
-
     try:
         start_game_mock.assert_called_once()
     except AssertionError:
@@ -280,3 +320,9 @@ def test_TextUI_class_main_loop_method_handles_user_choices(ui_cls, anki_instanc
             f"Во время проверки метода `main_loop`, метод `show_words` был вызван {show_words_mock.call_count} раз, а должен был всего 1 раз."
         )
 
+    try:
+        train_until_mistake_mock.assert_called_once()
+    except AssertionError:
+        assert False, (
+            f"Во время проверки метода `main_loop`, метод `train_until_mistake` был вызван {train_until_mistake_mock.call_count} раз, а должен был всего 1 раз."
+        )
