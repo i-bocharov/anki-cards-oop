@@ -220,3 +220,36 @@ class TestAnkiGetWordsMethod:
         assert anki.get_words() is not anki._words
 
 
+class TestAnkiClassDocstrings:
+
+    def test_Anki_class_has_docstring(self, anki_cls):
+        assert anki_cls.__doc__, (
+            "Для класса `Anki` должен быть разработан докстринг"
+        )
+
+    def test_Anki_class_normalize_word_has_docstring(self, anki_cls):
+        docstring = anki_cls.normalize_word.__doc__
+        assert docstring, (
+            "Для метода `normalize_word` класса `Anki` должен быть разработан докстринг"
+        )
+        assert "word" in docstring, (
+            "В докстринге метода `normalize_word` должны быть описаны принимаемые параметры"
+        )
+
+
+    def test_Anki_class_add_word_has_docstring(self, anki_cls):
+        docstring = anki_cls.add_word.__doc__
+        assert docstring, (
+            "Для метода `add_word` класса `Anki` должен быть разработан докстринг"
+        )
+        assert "word" in docstring, (
+            "В докстринге метода `add_word` должен быть описаны параметр `word`"
+        )
+        assert "translation" in docstring, (
+            "В докстринге метода `add_word` должен быть описаны параметр `translation`"
+        )
+
+    def test_Anki_class_get_words_has_docstring(self, anki_cls):
+        assert anki_cls.get_words.__doc__, (
+            "Для метода `get_words` класса `Anki` должен быть разработан докстринг"
+        )

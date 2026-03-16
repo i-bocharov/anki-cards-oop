@@ -186,3 +186,27 @@ class TestTextFileLoaderClassSaveWordsMethod:
             loader_with_file.save_words("not_a_dict")
             assert False, "Метод `save_words` должен выбрасывать ошибку, если в параметре `words` был передан не словарь"
 
+
+class TestTextFileLoaderClassDocstrings:
+
+    def test_TextFileLoader_class_has_docstring(self, loader_cls):
+        assert loader_cls.__doc__, (
+            "Для класса `TextFileLoader` должен быть разработан докстринг"
+        )
+
+    def test_TextFileLoader_class_load_words_has_docstring(self, loader_cls):
+        docstring = loader_cls.load_words.__doc__
+        assert docstring, (
+            "Для метода `load_words` класса `TextFileLoader` должен быть разработан докстринг"
+        )
+
+
+    def test_TextFileLoader_class_save_words_has_docstring(self, loader_cls):
+        docstring = loader_cls.save_words.__doc__
+        assert docstring, (
+            "Для метода `save_words` класса `TextFileLoader` должен быть разработан докстринг"
+        )
+        assert "words" in docstring, (
+            "В докстринге метода `save_words` класса `TextFileLoader` должен быть описан параметр `words`"
+        )
+
