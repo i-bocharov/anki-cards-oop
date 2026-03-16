@@ -5,17 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "anki"
 version = "0.0.1"
-authors = [
-	{ name="Это вы!", email="author@example.com" }
-]
+authors = [{ name = "Igor Bocharov", email = "igor.bocharov56@yandex.ru" }]
 description = "Игра Карты Anki"
 readme = "README.md"
 requires-python = ">=3.9"
-dependencies = [
-	"pytest"
-]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
 
 
 [project.scripts]
 anki = "anki.main:main"
-
