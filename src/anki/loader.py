@@ -58,7 +58,7 @@ class TextFileLoader:
 
         try:
             # Контекстный менеджер закроет файл и освободит ресурсы.
-            with self._file_path.open('r') as file:
+            with self._file_path.open('r', encoding='utf-8') as file:
                 for line in file:
                     line_content = line.strip()
 
@@ -100,7 +100,7 @@ class TextFileLoader:
 
         try:
             # Контекстный менеджер закроет файл и освободит ресурсы.
-            with self._file_path.open('w') as file:
+            with self._file_path.open('w', encoding='utf-8') as file:
                 for word, translation in words.items():
                     # Удаление переносов строк для сохранения формата.
                     clean_word = str(word).replace('\n', '').replace('\r', '')

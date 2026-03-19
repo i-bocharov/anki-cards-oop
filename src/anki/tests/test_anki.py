@@ -59,9 +59,47 @@ def test_normalize_word_raises_ValueError_on_invalid_input(invalid_input):
     `ValueError`, если в качестве значения параметра `word`
     передана не строка.
     """
-    with pytest.raises(ValueError, match='Должно быть строкой'):
+    with pytest.raises(ValueError, match='Слово должно быть строкой'):
         Anki.normalize_word(invalid_input)
         pytest.fail(
             "Метод `normalize_word` должен выдавать ValueError"
             " для нестроковых параметров"
         )
+
+
+@pytest.mark.parametrize(['invalid_words'], [
+    (123,),
+    ('not a dict',),
+    ([],),
+    ((('key', 'value'),),),
+])
+def test_anki_init_raises_ValueError_on_invalid_input(invalid_words):
+    """
+    Проверка, что передача в параметр words значений,
+    которые не являются словарём, вызывает ValueError.
+    """
+    with pytest.raises(
+        ValueError, match='Параметр words должен быть словарём'
+    ):
+        Anki(words=invalid_words)
+
+
+@pytest.mark.parametrize(['invalid_word', 'invalid_translation'], [
+    (123, 'translation'),
+    ('word', 456),
+    (None, 'translation'),
+    ('Word', None),
+    (['list'], 'translation'),
+    ('word', {'dict': 'val'}),
+])
+def test_anki_add_word_raises_ValueError_on_invalid_input(
+    invalid_word,
+    invalid_translation
+):
+    """
+    Проверка, что передача в word или translation значений,
+    которые не являются строками, вызывает ValueError.
+    """
+    anki = Anki()
+    with pytest.raises(ValueError, match='Слово должно быть строкой'):
+        anki.add_word(invalid_word, invalid_translation)
