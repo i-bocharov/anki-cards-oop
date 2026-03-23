@@ -1,5 +1,6 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 from copy import deepcopy
+import random
 
 
 class Anki:
@@ -124,3 +125,101 @@ class Anki:
             Изменения копии не повлияют на внуреннее состоние объекта.
         """
         return deepcopy(self._words)
+
+    def get_random_word(self) -> str:
+        """
+        Возвращает случайное слово из коллекции для изучения.
+
+        Returns:
+            str: Случайное слово из словаря (нормализованное).
+
+        Raises:
+            ValueError: Если коллекция слов пуста.
+        """
+        if not self._words:
+            raise ValueError(
+                'Коллекция слов пуста. Добавьте слова.'
+            )
+
+        return random.choice(list(self._words.keys()))
+
+    def get_random_word_pair(self) -> Tuple[str, str]:
+        """
+        Возвращает случайную пару (слово, перевод) для игрового режима.
+
+        Returns:
+            Tuple[str, str]: Кортеж из слова и его перевода.
+
+        Raises:
+            ValueError: Если коллекция слов пуста.
+        """
+        if not self._words:
+            raise ValueError(
+                'Коллекция слов пуста. Добавьте слова перед началом игры.'
+            )
+
+        return random.choice(list(self._words.items()))
+
+    def check_translation(self, word: str, translation: str) -> bool:
+        """
+        Проверяет корректность перевода для указанного слова.
+
+        Args:
+            word (str): Слово для проверки.
+            translation (str): Перевод для проверки.
+
+        Returns:
+            bool: True, если перевод корректен, иначе False.
+
+        Raises:
+            ValueError: Если слово отсутствует в коллекции или не строка.
+        """
+        if not isinstance(word, str):
+            raise ValueError(
+                f'Параметр word должен быть строкой, '
+                f'получено: {type(word).__name__}'
+            )
+
+        if not isinstance(translation, str):
+            raise ValueError(
+                f'Параметр translation должен быть строкой, '
+                f'получено: {type(translation).__name__}'
+            )
+
+        normalized_word = self.normalize_word(word)
+        normalized_translation = self.normalize_word(translation)
+
+        if normalized_word not in self._words:
+            raise ValueError(
+                f'Слово "{normalized_word}" отсутствует в коллекции.'
+            )
+
+        return self._words[normalized_word] == normalized_translation
+
+    def get_translation(self, word: str) -> str:
+        """
+        Возвращает перевод для указанного слова.
+
+        Args:
+            word (str): Слово для получения перевода.
+
+        Returns:
+            str: Перевод слова.
+
+        Raises:
+            ValueError: Если слово отсутствует в коллекции или не строка.
+        """
+        if not isinstance(word, str):
+            raise ValueError(
+                f'Парамер word должен быть строкой, '
+                f'получено: {type(word).__name__}'
+            )
+
+        normalized_word = self.normalize_word(word)
+
+        if normalized_word not in self._words:
+            raise ValueError(
+                f'Слово "{normalized_word}" отсутствует в коллекции.'
+            )
+
+        return self._words[normalized_word]
