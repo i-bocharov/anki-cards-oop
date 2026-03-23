@@ -45,6 +45,39 @@ class Anki:
         # Присваивание только после успешной валидации
         self._words = normalized_words
 
+    def __contains__(self, word: object) -> bool:
+        """
+        Проверяет наличие нормализованного слова в коллекции.
+
+        Args:
+            word (object): Слово для поиска. Должно быть строкой.
+
+        Returns:
+            bool: True, если слово найдено, иначе False.
+
+        Raises:
+            ValueError: Если переданный аргумент не является строкой.
+        """
+        # Явная проверка типа для безопасности.
+        # Это предотвращает передачу некорректных данных в normalize_word.
+        if not isinstance(word, str):
+            raise ValueError(
+                f'Аргумент для проверки вхождения должен быть строкой, '
+                f'получено: {type(word).__name__}'
+            )
+
+        normalized_word = self.normalize_word(word)
+        return normalized_word in self._words
+
+    def __str__(self):
+        """
+        Возвращает человеко-читаемое представление объекта.
+
+        Returns:
+            str: Строка с информацией о количестве слов в коллекции.
+        """
+        return f'Количество слов в коллекции Anki: {len(self._words)}'
+
     @staticmethod
     def normalize_word(word: str) -> str:
         """
