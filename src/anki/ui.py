@@ -35,12 +35,6 @@ class TextUI:
         Raises:
             ValueError: Если переданный аргумент не является экземпляром Anki.
         """
-        # Валидация типа для безопасности.
-        if not isinstance(anki_game, Anki):
-            raise ValueError(
-                f'Параметр anki_game должен быть экземпляром Anki, '
-                f'получено: {type(anki_game).__name__}'
-            )
 
         # Сохраняем ссылку на экземпляр Anki для использования в методах.
         self._anki_game = anki_game
@@ -66,9 +60,7 @@ class TextUI:
         while True:
             try:
                 # Получаем случайную пару (слово, перевод) из Anki.
-                word, correct_translation = (
-                    self._anki_game.get_random_word_pair()
-                )
+                word = self._anki_game.get_random_word()
 
                 # Выводим слово для перевода.
                 print(f'\nВаше слово для перевода: {word}')

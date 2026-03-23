@@ -16,7 +16,7 @@ def loader_cls():
 
 @pytest.fixture()
 def empty_temp_file():
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
         yield f.name
     os.unlink(f.name)
 
@@ -24,7 +24,7 @@ def empty_temp_file():
 @pytest.fixture()
 def temp_file():
     """Создание временного файла для тестов"""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
         f.write("hello,привет\nworld,мир\npython,питон\n")
     yield f.name
     os.unlink(f.name)
@@ -171,7 +171,7 @@ class TestTextFileLoaderClassSaveWordsMethod:
         words = {"new": "новый", "data": "данные"}
         loader.save_words(words)
 
-        with Path(temp_file).open('r') as f:
+        with Path(temp_file).open('r', encoding='utf-8') as f:
             content = f.read()
 
         expected_lines = {"new,новый\n", "data,данные\n"}

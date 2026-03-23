@@ -11,7 +11,7 @@ def main():
     ui = TextUI(anki)
     ui.main_loop()
 
-    loader.save_words()
+    loader.save_words(anki.get_words())
 
 
 if __name__ == "__main__":
