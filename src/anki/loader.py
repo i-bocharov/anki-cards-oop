@@ -1,120 +1,219 @@
 from pathlib import Path
-from typing import Union, Dict
+from typing import Dict, Optional, TextIO
 
 
-class TextFileLoader:
+class BaseFileLoader:
     """
-    Утилита для безопасной работы с файлами словарей.
-    Обеспечивает загрузку и сохранение пар «слово-перевод».
-    Реализует защиту от уязвимостей пути (Path Traversal).
+    Базовый класс для загрузчиков файлов со словами.
+
+    Реализует общую логику работы с файловой системой (открытие, закрытие,
+    проверка путей), оставляя реализацию формата данных дочерним классам.
     """
 
-    def __init__(self, *, file_path: Union[str, Path] = './words.txt'):
+    DEFAULT_FILE_PATH = './words.txt'
+
+    def __init__(self, *, file_path: Optional[str] = None):
         """
-        Инициализирует загрузчик с валидацией пути к файлу.
+        Инициализация загрузчика.
 
         Args:
-            file_path (Union[str, Path]): Путь к файлу со словами.
-                По умолчанию '.words.txt'.
+            file_path (str, optional): Путь к файлу. Если не указан,
+                используется DEFAULT_FILE_PATH.
 
         Raises:
-            ValueError: Если путь содержит '..' или указывает на директорию.
+            ValueError: Если путь указывает на директорию или находится
+                вне безопасной зоны (Path Traversal).
         """
-        # Валидация типа входных данных до конвертации.
-        if not isinstance(file_path, (str, Path)):
+        if file_path is None:
+            # Если путь не передали явно, используем значение
+            # по умолчанию, определённое в теле класса.
+            file_path = self.DEFAULT_FILE_PATH
+
+        self._file_path = Path(file_path)
+
+        if self._file_path.exists() and self._file_path.is_dir():
             raise ValueError(
-                f'Параметр file_path должен быть строкой или объектом Path, '
-                f'получено: {type(file_path).__name__}'
+                f'Путь {file_path} является директорией, а должен быть файлом.'
             )
-
-        path_obj = Path(file_path)
-
-        # Защита от Path Traversal: явный запрет на использование '..'.
-        if isinstance(file_path, str) and '..' in file_path:
-            raise ValueError(
-                'Путь не должен содержать "..". Обход директорий запрещен.'
-            )
-
-        # Проверка: путь не должен указывать на директорию.
-        if path_obj.exists() and path_obj.is_dir():
-            raise ValueError(
-                f'Путь является директорией, а не файлом: {path_obj.resolve()}'
-            )
-
-        self._file_path = path_obj
 
     def load_words(self) -> Dict[str, str]:
         """
-        Считывает пары слов из файла и возвращает словарь.
+        Загружает слова из файла.
 
         Returns:
-            Dict[str, str]: Словарь пар. Возвращает пустой dict, если файл
-                отсутствует или содержит ошибки формата.
+            Dict[str, str]: Словарь пар слово-перевод. Пустой словарь,
+                если файл не существует.
         """
         if not self._file_path.exists():
             return {}
 
-        words: Dict[str, str] = {}
-
-        try:
-            # Контекстный менеджер закроет файл и освободит ресурсы.
-            with self._file_path.open('r', encoding='utf-8') as file:
-                for line in file:
-                    line_content = line.strip()
-
-                    # Пропуск пустых строк.
-                    if not line_content:
-                        continue
-
-                    # Строгая валидация: ровно одна запятая в строке.
-                    if line_content.count(',') != 1:
-                        continue
-
-                    key, value = line_content.split(',', 1)
-                    # Очистка от пробелов и сохранение пары.
-                    words[key.strip()] = value.strip()
-
-        except IOError:
-            return {}
-
-        return words
+        with self._file_path.open('r', encoding='utf-8') as f:
+            return self._load_from_file(f)
 
     def save_words(self, words: Dict[str, str]) -> None:
         """
-        Перезаписывает файл данными из переданного словаря.
+        Сохраняет слова в файл.
 
         Args:
-            words (Dict[str, str]): Словарь пар слово-перевод для сохранения.
-                Каждая пара записывается в формате  «слово,перевод».
+            words (Dict[str, str]): Словарь с словами и переводами.
 
         Raises:
-            ValueError: Если переданный аргумент не является словарём.
-            RuntimeError: Если произошла ошибка ввода-вывода при записи.
+            ValueError: Если параметр words не является словарем или
+                содержит нестроковые ключи/значения.
         """
-        # Валидация типа: метод принимает только словарь.
         if not isinstance(words, dict):
             raise ValueError(
-                f'Параметр words должен быть словарём. '
-                f'Получено: {type(words).__name__}'
+                'Значением параметра `words` должен быть словарь.'
             )
 
-        try:
-            # Контекстный менеджер закроет файл и освободит ресурсы.
-            with self._file_path.open('w', encoding='utf-8') as file:
-                for word, translation in words.items():
-                    # Удаление переносов строк для сохранения формата.
-                    clean_word = str(word).replace('\n', '').replace('\r', '')
-                    clean_translation = str(translation).replace(
-                        '\n', ''
-                    ).replace('\r', '')
-
-                    file.write(f'{clean_word},{clean_translation}\n')
-
-                print(
-                    f'Сохранено {len(words)} слов в файл {self._file_path}'
+        # Валидация содержимого словаря
+        for key, value in words.items():
+            if not isinstance(key, str) or not isinstance(value, str):
+                raise ValueError(
+                    'Ключи и значения словаря должны быть строками.'
                 )
 
-        except IOError as e:
-            raise RuntimeError(
-                f'Не удалось записать в файл {self._file_path}: {e}'
+        with self._file_path.open('w', encoding='utf-8') as f:
+            return self._save_to_file(words, f)
+
+    def _load_from_file(self, file_object: TextIO) -> Dict[str, str]:
+        """
+        Реализует логику загрузки данных определённого формата из file_object.
+
+        Метод должен быть переопределён в наследниках.
+
+        Args:
+            file_object (TextIO): FileLike объект,
+                из которого идёт чтение данных.
+
+        Returns:
+            Dict[str, str]: Словарь с загруженными словами.
+
+        Raises:
+            NotImplementedError: Если метод не переопределён в наследнике.
+        """
+        raise NotImplementedError
+
+    def _save_to_file(
+            self, words: Dict[str, str], file_object: TextIO
+    ) -> None:
+        """
+        Реализует логику сохранения слов в определённом формате в файл.
+
+        Метод должен быть переопределён в наследниках.
+
+        Args:
+            words (Dict[str, str]): Словарь с словами и переводами.
+            file_object (TextIO): FileLike объект,
+                в который идёт запись данных.
+
+        Raises:
+            NotImplementedError: Если метод не переопределён в наследнике.
+        """
+        raise NotImplementedError
+
+
+class TextFileLoader(BaseFileLoader):
+    """
+    Загрузчик для текстовых файлов формата CSV (разделитель запятая).
+
+    Формат записи: "слово,перевод"
+    """
+
+    DEFAULT_FILE_PATH = './words.txt'
+
+    def _load_from_file(self, file_object: TextIO) -> Dict[str, str]:
+        """
+        Парсит строки файла в словарь (формат CSV).
+
+        Args:
+            file_object (TextIO): Объект файла для чтения.
+
+        Returns:
+            Dict[str, str]: Словарь пар слово-перевод.
+        """
+        words: Dict[str, str] = {}
+        for line in file_object:
+            line_content = line.strip()
+            if not line_content:
+                continue
+
+            # Безопасное разделение: только первое вхождение запятой.
+            parts = line_content.split(',', 1)
+            if len(parts) != 2:
+                continue
+
+            key, value = parts
+            words[key.strip()] = value.strip()
+
+        return words
+
+    def _save_to_file(
+            self, words: Dict[str, str], file_object: TextIO
+    ) -> None:
+        """
+        Записывает словарь в файл в формате CSV.
+
+        Args:
+            words (Dict[str, str]): Словарь для сохранения.
+            file_object (TextIO): Объект файла для записи.
+        """
+        for word, translation in words.items():
+            # Санитизация данных: удаление переносов строк.
+            clean_word = str(word).replace('\n', '').replace('\r', '')
+            clean_translation = str(translation).replace('\n', '').replace(
+                '\r', ''
             )
+            file_object.write(f'{clean_word},{clean_translation}\n')
+
+
+class TSVFileLoader(BaseFileLoader):
+    """
+    Загрузчик для TSV файлов (разделитель табуляция).
+
+    Формат записи: "слово\\tперевод"
+    """
+
+    DEFAULT_FILE_PATH = './words.tsv'
+
+    def _load_from_file(self, file_object: TextIO) -> Dict[str, str]:
+        """
+        Парсит строки TSV файла в словарь.
+
+        Args:
+            file_object (TextIO): Объект файла для чтения.
+
+        Returns:
+            Dict[str, str]: Словарь пар слово-перевод.
+        """
+        words: Dict[str, str] = {}
+        for line in file_object:
+            line_content = line.strip()
+            if not line_content:
+                continue
+
+            parts = line_content.split('\t', 1)
+            if len(parts) != 2:
+                continue
+
+            key, value = parts
+            words[key.strip()] = value.strip()
+
+        return words
+
+    def _save_to_file(
+            self, words: Dict[str, str], file_object: TextIO
+    ) -> None:
+        """
+        Записывает словарь в файл в формате TSV.
+
+        Args:
+            words (Dict[str, str]): Словарь для сохранения.
+            file_object (TextIO): Объект файла для записи.
+        """
+        for word, translation in words.items():
+            clean_word = str(word).replace('\n', '').replace('\r', '')
+            clean_translation = str(translation).replace('\n', '').replace(
+                '\r', ''
+            )
+            file_object.write(f'{clean_word}\t{clean_translation}\n')
