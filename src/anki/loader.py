@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Dict, Optional, TextIO
+import json
 
 
 class BaseFileLoader:
@@ -217,3 +218,48 @@ class TSVFileLoader(BaseFileLoader):
                 '\r', ''
             )
             file_object.write(f'{clean_word}\t{clean_translation}\n')
+
+
+class JsonFileLoader(BaseFileLoader):
+    """
+    Загрузчик для файлов формата JSON.
+
+    Формат записи: {"слово": "перевод", ...}
+    """
+
+    DEFAULT_FILE_PATH = './words.json'
+
+    def _load_from_file(self, file_object: TextIO) -> Dict[str, str]:
+        """
+        Загружает и парсит JSON данные из файла.
+
+        Args:
+            file_object (TextIO): Объект файла для чтения.
+
+        Returns:
+            Dict[str, str]: Словарь пар слово-перевод.
+        """
+        data = json.load(file_object)
+
+        # Валидация: на всякий случай убеждаемся, что данные — это словарь.
+        if not isinstance(data, dict):
+            return {}
+
+        return data
+
+    def _save_to_file(
+            self, words: Dict[str, str], file_object: TextIO
+    ) -> None:
+        """
+        Записывает словарь в файл в формате JSON.
+
+        Args:
+            words (Dict[str, str]): Словарь для сохранения.
+            file_object (TextIO): Объект файла для записи.
+        """
+        json.dump(
+            words,
+            file_object,
+            indent=2,
+            ensure_ascii=False
+        )
