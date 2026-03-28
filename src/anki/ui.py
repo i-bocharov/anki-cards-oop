@@ -140,17 +140,22 @@ class TextUI:
         """
         Выводит все пары слов и переводов из коллекции.
 
+        В начале показывает общее количество слов.
         Формат вывода: "слово - перевод" (по одной паре на строку).
         """
-        # Получаем глубокую копию словаря для безопасного чтения.
-        words = self._anki_game.get_words()
+        # Используем магический метод __len__ для получения количества слов.
+        total_words = len(self._anki_game)
 
         # Проверяем наличие слов.
-        if not words:
+        if not total_words:
             print('Коллекция слов пуста.')
             return
 
-        for word, translation in words.items():
+        # Выводим общее количество слов
+        print(f'Всего слов в коллекции: {total_words}')
+        print('-' * 40)
+
+        for word, translation in self._anki_game:
             print(f'{word} - {translation}')
 
     def train_until_mistake(self) -> None:

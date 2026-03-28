@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple
+from typing import Dict, Iterator, Optional, Tuple
 from copy import deepcopy
 import random
 
@@ -9,6 +9,7 @@ class Anki:
 
     Хранит пары «слово-перевод», обеспечивает нормализацию данных
     и валидацию типов при добавлении новых записей.
+    Реализует протоколы итерируемого объекта и вычисления длины.
     """
 
     def __init__(self, *, words: Optional[Dict[str, str]] = None):
@@ -32,7 +33,7 @@ class Anki:
             )
 
         # Создаем новый словарь с нормализованными данными.
-        normalized_words = {}
+        normalized_words: Dict[str, str] = {}
 
         # Валидация типов ключей и значений
         for key, value in words.items():
@@ -70,7 +71,7 @@ class Anki:
         normalized_word = self.normalize_word(word)
         return normalized_word in self._words
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Возвращает человеко-читаемое представление объекта.
 
@@ -78,6 +79,24 @@ class Anki:
             str: Строка с информацией о количестве слов в коллекции.
         """
         return f'Количество слов в коллекции Anki: {len(self._words)}'
+
+    def __iter__(self) -> Iterator[Tuple[str, str]]:
+        """
+        Возвращает итератор по парам слово-перевод.
+
+        Returns:
+            Iterator[Tuple[str, str]]: Итератор по кортежам (слово, перевод).
+        """
+        return iter(self._words.items())
+
+    def __len__(self) -> int:
+        """
+        Возвращает количество слов в коллекции.
+
+        Returns:
+            int: Количество пар слово-перевод в коллекции.
+        """
+        return len(self._words)
 
     @staticmethod
     def normalize_word(word: str) -> str:
@@ -211,7 +230,7 @@ class Anki:
         """
         if not isinstance(word, str):
             raise ValueError(
-                f'Парамер word должен быть строкой, '
+                f'Параметр word должен быть строкой, '
                 f'получено: {type(word).__name__}'
             )
 
