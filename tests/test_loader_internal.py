@@ -1,6 +1,8 @@
 import importlib
 import tempfile
 import os
+import json
+import io
 
 from pathlib import Path
 
@@ -12,6 +14,19 @@ def loader_cls():
     from anki import loader
     importlib.reload(loader)
     return loader.TextFileLoader
+
+
+@pytest.fixture()
+def json_loader_cls():
+    from anki import loader
+    importlib.reload(loader)
+    return loader.JsonFileLoader
+
+
+@pytest.fixture()
+def json_loader_instance(json_loader_cls):
+    return json_loader_cls()
+
 
 
 @pytest.fixture()
@@ -210,3 +225,41 @@ class TestTextFileLoaderClassDocstrings:
             "В докстринге метода `save_words` класса `TextFileLoader` должен быть описан параметр `words`"
         )
 
+
+class TestJsonFileLoader:
+
+    def test_default_file_path_is_dot_json(self, json_loader_instance):
+
+        assert json_loader_instance.DEFAULT_FILE_PATH == "./words.json", (
+            "Значением атрибута класса `DEFAULT_FILE_PATH` должен быть `\"./words.json\"`"
+        )
+
+    def test_loading_words_from_json(self, json_loader_instance):
+        """Класс `JsonFileLoader` должен загружать слова из файла с json объектом"""
+        words = {"hello": "привет", "world": "мир"}
+
+        file_object = io.StringIO(json.dumps(words, indent=2))
+        file_object.seek(0)
+
+        loaded_words = json_loader_instance._load_from_file(file_object)
+
+        assert words == loaded_words, (
+            "При загрузке слов из json файла был получен неожиданный результат."
+        )
+
+    def test_saving_words_as_json(self, json_loader_instance):
+        """Класс `JsonFileLoader` должен сохранять слова в файла как json объект с форматированием в 2 отступа и utf8 байтами."""
+        words = {"hello": "привет", "world": "мир"}
+
+        file_object = io.StringIO()
+
+        json_loader_instance._save_to_file(words, file_object)
+
+        file_object.seek(0)
+
+        content = file_object.read()
+
+        assert json.dumps(words, indent=2, ensure_ascii=False) == content, (
+            "При сохранении слов в файл json должен записываться в несколько строчек с отступами длинною в 2 пробела."
+            "При этом кириллические символы должны сохраняться в файл как есть."
+        )
