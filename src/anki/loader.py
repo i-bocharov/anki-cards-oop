@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Dict, Optional, TextIO
 import json
+import requests
 
 
 class BaseFileLoader:
@@ -263,3 +264,47 @@ class JsonFileLoader(BaseFileLoader):
             indent=2,
             ensure_ascii=False
         )
+
+
+class JsonNetworkLoader:
+    """
+    Загрузчик слов из сетевого источника по ссылке.
+
+    Получает JSON данные по указанному URL и парсит их в словарь.
+    Не наследуется от BaseFileLoader, так как работает с сетью, а не с файлами.
+    """
+    def __init__(self, url: str):
+        """
+        Инициализирует загрузчик с указанным URL.
+
+        Args:
+            url (str): Ссылка на источник данных в формате JSON.
+        """
+        self.url = url
+
+    def load_words(self) -> Dict[str, str]:
+        """
+        Загружает слова из сетевого источника по ссылке.
+
+        Returns:
+            Dict[str, str]: Словарь пар слово-перевод.
+
+        Raises:
+            requests.RequestException: Если произошла ошибка при запросе.
+            json.JSONDecodeError: Если ответ не валидный JSON.
+        """
+        response = requests.get(self.url)
+        response.raise_for_status()
+        return response.json()
+
+    def save_words(self, words: Dict[str, str]) -> None:
+        """
+        Метод-заглушка для сохранения слов.
+
+        Для сетевого загрузчика сохранение не реализовано.
+
+        Args:
+            words (Dict[str, str]): Словарь с словами и переводами.
+        """
+        # Заглушка: сетевой загрузчик не поддерживает сохранение.
+        pass

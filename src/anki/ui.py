@@ -153,7 +153,7 @@ class TextUI:
 
         # Выводим общее количество слов
         print(f'Всего слов в коллекции: {total_words}')
-        print('-' * 40)
+        # print('-' * 40)
 
         for word, translation in self._anki_game:
             print(f'{word} - {translation}')

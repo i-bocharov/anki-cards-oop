@@ -12,7 +12,7 @@ requires-python = ">=3.9"
 dependencies = ["requests"]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "types-requests>=2.33.0", "mypy>=1.15.0"]
 
 
 [project.scripts]
