@@ -1,7 +1,5 @@
 import importlib
-
-from unittest.mock import Mock, patch
-
+from unittest.mock import Mock, MagicMock, patch
 import pytest
 
 
@@ -160,28 +158,63 @@ def test_TextUI_class_add_words_method(ui_cls, monkeypatch, capsys):
     )
 
 
+# def test_TextUI_class_show_words_method(ui_cls, monkeypatch, capsys):
+#     """Проверяет метод `show_words` на предмент выполнения условий: вывода слов в формате "слово - перевод" и использование методов класса `Anki`"""
+#     anki_mock = Mock()
+#     anki_mock.get_words.return_value = {"hello": "привет", "world": "мир", "python": "питон"}
+
+#     ui = ui_cls(anki_mock)
+
+#     ui.show_words()
+
+#     output = capsys.readouterr().out
+
+#     assert output.splitlines() == ["hello - привет", "world - мир", "python - питон"], (
+#         "Метод `show_words` должен вывести информацию по словам в экземпляре класса `Anki`"
+#         " в стандартный поток вывода, в формате \"слово - перевод\""
+#     )
+
+#     try:
+#         anki_mock.get_words.assert_called()
+#     except AssertionError:
+#         assert False, (
+#         "Метод `show_words` должен использовать методы экземпляра класса `Anki` для получения слов"
+#     )
+
+
 def test_TextUI_class_show_words_method(ui_cls, monkeypatch, capsys):
     """Проверяет метод `show_words` на предмент выполнения условий: вывода слов в формате "слово - перевод" и использование методов класса `Anki`"""
-    anki_mock = Mock()
-    anki_mock.get_words.return_value = {"hello": "привет", "world": "мир", "python": "питон"}
+    anki_mock = MagicMock()
+
+    # Настраиваем магический метод __len__ для len(anki_mock).
+    anki_mock.__len__.return_value = 3
+
+    # Настраиваем магический метод __iter__ для итерации по парам.
+    anki_mock.__iter__.return_value = iter([
+        ('hello', 'привет'),
+        ('world', 'мир'),
+        ('python', 'питон')
+    ])
 
     ui = ui_cls(anki_mock)
-
     ui.show_words()
 
     output = capsys.readouterr().out
 
-    assert output.splitlines() == ["hello - привет", "world - мир", "python - питон"], (
-        "Метод `show_words` должен вывести информацию по словам в экземпляре класса `Anki`"
-        " в стандартный поток вывода, в формате \"слово - перевод\""
+    # Проверяем, что выводится количество слов.
+    assert 'Всего слов в коллекции: 3' in output, (
+        'Метод `show_words` должен выводить общее количество слов.'
     )
 
-    try:
-        anki_mock.get_words.assert_called()
-    except AssertionError:
-        assert False, (
-        "Метод `show_words` должен использовать методы экземпляра класса `Anki` для получения слов"
-    )
+    # Проверяем формат вывода слов.
+    assert 'hello - привет' in output
+    assert 'world - мир' in output
+    assert 'python - питон' in output
+
+    # Проверяем, что используются магические методы, а НЕ get_words().
+    anki_mock.__len__.assert_called()
+    anki_mock.__iter__.assert_called()
+    anki_mock.get_words.assert_not_called()
 
 
 def test_TextUI_class_main_loop_method_shows_menu(ui_cls, anki_instance, monkeypatch, capsys):
@@ -257,4 +290,3 @@ def test_TextUI_class_main_loop_method_handles_user_choices(ui_cls, anki_instanc
         assert False, (
             f"Во время проверки метода `main_loop`, метод `show_words` был вызван {show_words_mock.call_count} раз, а должен был всего 1 раз."
         )
-
