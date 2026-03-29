@@ -9,7 +9,7 @@ authors = [{ name = "Igor Bocharov", email = "igor.bocharov56@yandex.ru" }]
 description = "Игра Карты Anki"
 readme = "README.md"
 requires-python = ">=3.9"
-dependencies = []
+dependencies = ["requests"]
 
 [project.optional-dependencies]
 dev = ["pytest"]
