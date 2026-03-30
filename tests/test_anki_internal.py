@@ -1,5 +1,6 @@
 import pytest
 import importlib
+import unittest.mock
 
 
 @pytest.fixture()
@@ -25,19 +26,15 @@ def anki_with_words(anki_instance):
 class TestAnkiClassInitialization:
     """Коллекция тест-кейсов для проверки инициализатора класса Anki."""
 
-
     def test_Anki_instanse_protected_atribute_words_exist(self, anki_instance):
         """Атрибут `_words` должен быть защищенным"""
         assert hasattr(anki_instance, "_words"), "Атрибут _words должен быть защищённым"
-        assert not hasattr(anki_instance, "words")
-
 
     def test_Anki_class_has_no_class_attributes(self, anki_cls):
         """Атрибут `_words` должен быть только у экземпляров"""
         assert not hasattr(anki_cls, "_words"), (
             "Атрибут `words` должен определяться при инициализации экземпляра, а не на уровне класса"
         )
-
 
     def test_Anki_accepts_only_keyword_arguments(self, anki_cls):
         """Параметр words должен быть только именованным"""
@@ -112,8 +109,21 @@ class TestAnkiClassInitialization:
         words = {"hello": "привет", "world": "мир"}
         anki = anki_cls(words=words)
         assert anki._words == words, (
-                "При передаче корректных значений в инит класса `Anki` не должно выполняться никаких преобразований."
+            "При передаче корректных значений в инит класса `Anki` не должно выполняться никаких преобразований."
         )
+
+    def test_init_uses_normalize_dict_method(self, anki_cls):
+        """Инит класса должен использовать метод _normalize_dict"""
+        with unittest.mock.patch.object(anki_cls, "_normalize_dict") as mock:
+            words = {"hello": "привет", "world": "мир"}
+            anki_cls(words=words)
+
+        try:
+            mock.assert_called_with(words)
+        except AssertionError:
+            assert False, (
+                "Используйте метод `_normalize_dict` в ините класса для нормализации переданного словаря"
+            )
 
 
 class TestAnkiAddWordMethod:
@@ -195,37 +205,83 @@ class TestAnkiNormalizeWordMethod:
                 "Метод `normalize_word` должен выбрасывать исключение `ValueError` для нестроковых значений."
             )
 
+class TestAnkiWordsProperty:
+    """Коллекция тест-кейсов для тестирования свойства `words` класса `Anki`."""
 
-class TestAnkiGetWordsMethod:
-    """Коллекция тест-кейсов для тестирования метода `get_words()` класса `Anki`."""
+    def test_word_property_exists(self, anki_instance):
+        """У класса `Anki` должено быть свойство `words`"""
 
-    def test_get_word_method_exists(self, anki_instance):
-        """У класса `Anki` должен быть метод `get_words()`"""
-
-        assert hasattr(anki_instance, 'get_words'), (
-            "У класса `Anki` должен быть определён метод `get_words()`."
+        assert hasattr(anki_instance, 'words'), (
+            "У класса `Anki` должно быть определно свойство `words`."
         )
-        assert callable(anki_instance.get_words), (
-            "Атрибут `get_words` класса `Anki` должен быть методом."
+        words_obj = getattr(type(anki_instance), "words", None)
+        assert isinstance(words_obj, property), (
+            "Атрибут `words` класса `Anki` должен быть свойством."
+        )
+        assert words_obj.fset is not None, (
+            "Свойство `words` должно иметь сеттер"
         )
 
-    def test_get_words_return_all_words(self, anki_cls):
-        """Метод `get_words()` класса `Anki` должен возвращать все слова."""
+    def test_words_property_return_all_words(self, anki_cls):
+        """Свойство `words` класса `Anki` должно возвращать все слова."""
         anki = anki_cls(words={"HELLO": "ПРИВЕТ"})
-        assert anki.get_words() == {"hello": "привет"}, (
-                "Метод `get_words()` должен возвращать все слова добавленные как при инициализации экземпляра, так и через метод `add_word()`"
+        assert anki.words == {"hello": "привет"}, (
+                "Свойство `words` должно возвращать все слова добавленные как при инициализации экземпляра, так и через метод `add_word()`"
         )
         anki.add_word("PyThOn", "Питон")
 
-        assert anki.get_words() == {"hello": "привет", "python": "питон"}, (
-                "Метод `get_words()` должен возвращать все слова добавленные как при инициализации экземпляра, так и через метод `add_word()`"
+        assert anki.words == {"hello": "привет", "python": "питон"}, (
+                "Свойство `words` должно возвращать все слова добавленные как при инициализации экземпляра, так и через метод `add_word()`"
         )
         
-    def test_get_words_return_a_copy_of_a_words_dict(self, anki_cls):
-        """Метод `get_words()` класса `Anki` должен возвращать копию словаря `_words`"""
+    def test_words_property_return_a_copy_of_a_words_dict(self, anki_cls):
+        """Свойство `words()` класса `Anki` должно возвращать копию словаря `_words`."""
         anki = anki_cls(words={"HELLO": "ПРИВЕТ"})
 
-        assert anki.get_words() is not anki._words
+        assert anki.words is not anki._words
+
+
+    def test_words_setter_replaces_words_dict(self, anki_instance):
+        """Сеттер `words` должен полностью заменять словарь с словами."""
+        old_words = anki_instance.words
+
+        words = {"hello": "привет"}
+        anki_instance.words = words
+
+        assert anki_instance.words != old_words, (
+            "Сеттер `words` должен полностью заменять словарь с словами в атрибуте `_words`."
+        )
+        assert anki_instance.words == words, (
+            "Сеттер `words` должен полностью заменять словарь с словами в атрибуте `_words`."
+        )
+
+    def test_words_setter_calls_normalize_dict(self, anki_instance):
+        """Сеттер свойства `words` должен использовать метод _normalize_dict."""
+        with unittest.mock.patch.object(anki_instance, "_normalize_dict") as mock:
+            words = {"hello": "привет", "world": "мир"}
+            anki_instance.words = words
+
+        try:
+            mock.assert_called_with(words)
+        except AssertionError:
+            assert False, (
+                "Используйте метод `_normalize_dict` в сеттере `words` для нормализации переданного словаря"
+            )
+
+    @pytest.mark.parametrize('invalid_input', [
+        1,
+        [],
+        set(),
+        "abc"
+    ])
+    def test_words_setter_raises_ValueError_on_invalid_input(self, anki_instance, invalid_input):
+        """Через сеттер `words` можно установить только словари."""
+        with pytest.raises(ValueError):
+            anki_instance.words = invalid_input
+            assert False, (
+                    "Добавьте в сеттер `words` проверку, что переданное значения является словарем,"
+                    " в противном случае - выбрасывайте ValueError."
+            )
 
 
 class TestAnkiClassDocstrings:
@@ -257,9 +313,13 @@ class TestAnkiClassDocstrings:
             "В докстринге метода `add_word` должен быть описаны параметр `translation`"
         )
 
-    def test_Anki_class_get_words_has_docstring(self, anki_cls):
-        assert anki_cls.get_words.__doc__, (
-            "Для метода `get_words` класса `Anki` должен быть разработан докстринг"
+    def test_Anki_class_words_proeprty_has_docstring(self, anki_cls):
+        words_obj = getattr(anki_cls, "words", None)
+        assert words_obj.__doc__, (
+            "Для свойства `words` класса `Anki` должен быть разработан докстринг"
+        )
+        assert words_obj.fset.__doc__, (
+            "Для сеттера свойства `words` класса `Anki` должен быть разработан докстринг"
         )
 
     def test_Anki_class_get_random_word_has_docstring(self, anki_cls):
@@ -363,11 +423,11 @@ class TestAnkiMagicMethods:
         for word, translation in anki_with_words:
             words[word] = translation
 
-        assert words == anki_with_words.get_words(), "Убедитесь, что при итерации по классу `Anki` возвращаются все слова."
+        assert words == anki_with_words.words, "Убедитесь, что при итерации по классу `Anki` возвращаются все слова."
 
     def test_anki_len_method_returns_correct_amount(self, anki_with_words):
         """Проверяет реализацию метода `__len__()`"""
-        assert len(anki_with_words) == len(anki_with_words.get_words()), (
+        assert len(anki_with_words) == len(anki_with_words.words), (
             "Убедитесь, что вызов `len()` с экземпляром `Anki` возвращает правильное количество слов"
         )
 
@@ -391,7 +451,7 @@ class TestAnkiGetWordMethod:
             "Метод `get_word()` должен возвращать случайное слово из `_words`."
         )
 
-        assert len(words & anki_with_words.get_words().keys()) == len(words), (
+        assert len(words & anki_with_words.words.keys()) == len(words), (
             "В итоговую выборку должны были попасть все слова из `_words`. Проверьте действительно ли слова возвращаются случайно а также"
             " используемый алгоритм случайного выбора."
         )
@@ -457,3 +517,20 @@ class TestAnkiGetTranslationMethod:
                 "Метод `check_translation` должен выбрасывать исключение `ValueError` при отсутствии слова `word` в хранилище."
             )
 
+
+class TestAnkiNormalizeDictMethod:
+
+    def test_normalizes_dict(self, anki_instance):
+        """Метод `_normalize_dict` должен выполнять нормализацию слов в словаре."""
+
+        normalized_dict = anki_instance._normalize_dict(
+            {
+                "  HELLO  ": " ПРИВЕТ ",
+                " PyThoN ": "питон\t",
+            }
+        )
+
+        assert normalized_dict == {"hello": "привет", "python": "питон"}, (
+            "Метод `_normalize_dict` должен выполнять нормализацию слов в переданном словаре"
+            " и возвращать нормализованный словарь."
+        )
