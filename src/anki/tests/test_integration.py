@@ -36,8 +36,8 @@ def test_integration(tmp_integration_file):
     # Создаём Anki с загруженными словами.
     anki = Anki(words=loaded_words)
 
-    # Проверяем, что get_words() возвращает правильные слова.
-    assert anki.get_words() == {}, (
+    # Проверяем, что свойство words возвращает правильные слова.
+    assert anki.words == {}, (
         'Anki должен быть пустым после инициализации'
     )
 
@@ -46,7 +46,7 @@ def test_integration(tmp_integration_file):
     anki.add_word('world', 'мир')
 
     # Проверяем, что слова добавлены в память.
-    words_in_memory = anki.get_words()
+    words_in_memory = anki.words
     assert len(words_in_memory) == 2, 'В памяти должно быть 2 слова'
     assert words_in_memory['hello'] == 'привет'
     assert words_in_memory['world'] == 'мир'

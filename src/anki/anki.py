@@ -1,5 +1,4 @@
 from typing import Dict, Iterator, Optional, Tuple
-from copy import deepcopy
 import random
 
 
@@ -21,31 +20,13 @@ class Anki:
             words (Optional[Dict[str, str]]): Словарь пар слово-перевод.
                 По умолчанию None (создается пустой словарь).
         """
-        # Защита от изменяемого объекта по умолчанию
+        # Защита от изменяемого объекта по умолчанию.
         if words is None:
             words = {}
 
-        # Проверка типа контейнера
-        if not isinstance(words, dict):
-            raise ValueError(
-                f'Параметр words должен быть словарём ,'
-                f'получено: {type(words).__name__}'
-            )
-
-        # Создаем новый словарь с нормализованными данными.
-        normalized_words: Dict[str, str] = {}
-
-        # Валидация типов ключей и значений
-        for key, value in words.items():
-            # Валидация и нормализация через статический метод
-            # Если тип неверный, normalize_word выбросит ValueError.
-            norm_key = self.normalize_word(key)
-            norm_value = self.normalize_word(value)
-
-            normalized_words[norm_key] = norm_value
-
-        # Присваивание только после успешной валидации
-        self._words = normalized_words
+        # Валидация и нормализация через защищённый метод.
+        # Устраняет дублирование кода с сеттером.
+        self._words: Dict[str, str] = self._normalize_dict(words)
 
     def __contains__(self, word: object) -> bool:
         """
@@ -120,6 +101,72 @@ class Anki:
 
         return word.strip().lower()
 
+    def _normalize_dict(self, data: Dict[str, str]) -> Dict[str, str]:
+        """
+        Валидирует и нормализует весь словарь слов.
+
+        Защищённый метод для устранения дублирования кода в __init__ и
+        сеттере. Гарантирует, что внутренний словарь содержит только
+        нормализованные строки.
+
+        Args:
+            data (Dict[str, str]): Словарь для нормализации.
+
+        Returns:
+            Dict[str, str]: Новый словарь с нормализованными ключами и
+                значениями.
+
+        Raises:
+            ValueError: Если входные данные не словарь или содержат
+                нестроковые значения.
+        """
+        if not isinstance(data, dict):
+            raise ValueError(
+                f'Параметр words должен быть словарём, '
+                f'получено: {type(data).__name__}'
+            )
+
+        normalized: Dict[str, str] = {}
+        for key, value in data.items():
+            # normalize_word выбросит ValueError, если ключ или значение не
+            # строка.
+            norm_key = self.normalize_word(key)
+            norm_value = self.normalize_word(value)
+            normalized[norm_key] = norm_value
+
+        return normalized
+
+    @property
+    def words(self) -> Dict[str, str]:
+        """
+        Возвращает копию словаря слов.
+
+        Геттер возвращает копию, чтобы предотвратить модификацию
+        внутреннего состояния объекта (_words) извне.
+
+        Returns:
+            Dict[str, str]: Копия словаря пар слово-перевод.
+        """
+        # Создаем поверхностную копию. Так как значения - неизменяемые строки,
+        # глубокое копирование не требуется, что улучшает производительность.
+        return {**self._words}
+
+    @words.setter
+    def words(self, value: Dict[str, str]) -> None:
+        """
+        Устанавливает новый словарь слов с валидацией и нормализацией.
+
+        Сеттер использует _normalize_dict для обеспечения целостности данных.
+
+        Args:
+            value (Dict[str, str]): Новый словарь пар слово-перевод.
+
+        Raises:
+            ValueError: Если переданные данные не проходят валидацию.
+        """
+        # Делегируем валидацию и нормализацию защищённому методу
+        self._words = self._normalize_dict(value)
+
     def add_word(self, word: str, translation: str) -> None:
         """
         Добавляет пару слово-перевод в словарь после нормализации.
@@ -134,16 +181,6 @@ class Anki:
         norm_translation = self.normalize_word(translation)
 
         self._words[norm_word] = norm_translation
-
-    def get_words(self) -> Dict[str, str]:
-        """
-        Возвращает глубокую копию словаря для безопасного использования.
-
-        Returns:
-            Dict[str, str]: Глубокая копия словаря пар слово-перевод.
-            Изменения копии не повлияют на внуреннее состоние объекта.
-        """
-        return deepcopy(self._words)
 
     def get_random_word(self) -> str:
         """
