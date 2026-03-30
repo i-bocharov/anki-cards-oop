@@ -1,5 +1,6 @@
 from typing import Dict, Iterator, Optional, Tuple
 import random
+import time
 
 
 class Anki:
@@ -27,6 +28,19 @@ class Anki:
         # Валидация и нормализация через защищённый метод.
         # Устраняет дублирование кода с сеттером.
         self._words: Dict[str, str] = self._normalize_dict(words)
+
+        # Начата ли сессия тренировки до первой ошибки.
+        self._session_active = False
+        # Время начала тренировки.
+        self._session_start_time = 0.0
+        # Количество правильных ответов.
+        self._session_user_score = 0
+
+        # Информация о последней тренировке.
+        self.last_session_stats = {
+            "correct_answers": 0,
+            "total_time": 0.0,
+        }
 
     def __contains__(self, word: object) -> bool:
         """
@@ -166,6 +180,32 @@ class Anki:
         """
         # Делегируем валидацию и нормализацию защищённому методу
         self._words = self._normalize_dict(value)
+
+    def start_session(self):
+        """Начинает новую тренировочную сессию."""
+        if self._session_active:
+            raise RuntimeError(
+                'Нельзя начать тренировку, если она уже начата.'
+            )
+
+        self._session_active = True
+        self._session_start_time = time.time()
+        self._session_user_score = 0
+
+    def end_session(self):
+        """Завершает текущую тренировочную сессию."""
+        if not self._session_active:
+            raise RuntimeError('Нельзя завершить неактивную сессию.')
+
+        self.last_session_stats = {
+            "correct_answers": self._session_user_score,
+            "total_time": time.time() - self._session_start_time
+        }
+
+        # Сбрасываем состояние.
+        self._session_active = False
+        self._session_user_score = 0
+        self._session_start_time = 0.0
 
     def add_word(self, word: str, translation: str) -> None:
         """
