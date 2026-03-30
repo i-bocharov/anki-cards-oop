@@ -1,6 +1,7 @@
 import pytest
 import importlib
 import unittest.mock
+import traceback
 
 
 @pytest.fixture()
@@ -534,3 +535,175 @@ class TestAnkiNormalizeDictMethod:
             "Метод `_normalize_dict` должен выполнять нормализацию слов в переданном словаре"
             " и возвращать нормализованный словарь."
         )
+
+
+class TestAnkiTrainingSession:
+
+    @pytest.mark.parametrize('method', [
+        "start_session",
+        "end_session",
+    ])
+    def test_has_required_methods(self, anki_cls, method):
+        assert hasattr(anki_cls, method), (
+            f"Убедитесь что в классе `Anki` реализован метод {method}"
+        )
+
+    @pytest.mark.parametrize('attribute, default_value', [
+        ("_session_active", False),
+        ("_session_start_time", 0.0),
+        ("_session_user_score", 0),
+        ("last_session_stats", {"correct_answers": 0, "total_time": 0.0}),
+    ])
+    def test_has_required_attributes(self, anki_instance, attribute, default_value):
+        assert hasattr(anki_instance, attribute), (
+            f"Убедитесь что при создании объектов класса Anki инициализируется атрибут {attribute}"
+            f"c значением {default_value}"
+        )
+
+
+    def test_check_translation_does_not_check_the_word_if_training_session_is_not_active(self, anki_with_words):
+        """Проверка переданного слова (не его перевода), должна выполнять только если активна тренировка."""
+        word = anki_with_words.get_random_word()
+
+        try:
+            anki_with_words.check_translation(word, "123abc")
+        except ValueError:
+            assert False, (
+                "Убедитесь, что проверка переданного для угадывания слова методу `check_translation` работает"
+                " только при активной тренировочной сессии"
+            )
+
+    def test_check_translation_method_works_in_active_training_session(self, anki_with_words):
+        """
+        При активной тренировке метод `check_translation` должен работать как ожидается:
+            - Проверять корректность перевода
+            - Увеличивать счётчик правильных ответов пользователя
+        """
+        words = anki_with_words.words
+        
+        anki_with_words.start_session() 
+        try:
+            for _ in range(3):
+                word = anki_with_words.get_random_word()
+                translation = words[word]
+                anki_with_words.check_translation(word, translation)
+        except Exception as err:
+            assert False, (
+                f"Во время нормального алгоритма работы с тренировочной сессией возникла ошибка: {err}."
+            )
+        anki_with_words.end_session()
+
+        # 3 потому что по циклу 3 раза правильно угадываем перевод.
+        assert anki_with_words.last_session_stats["correct_answers"] == 3, (
+                "Убедитесь, что подсчёт результатов ведётся корректно",
+                f"Ожидалось: 3 правильных ответа, получено: {anki_with_words.last_session_stats['correct_answers']}"
+        )
+
+    def test_attempt_to_translate_incorrect_word_result_in_ValuError(self, anki_instance):
+        """
+        При активной тренировке метод `check_translation` должен проверять,
+        что переданный `word` является именно тем словом, которое было выдано
+        для перевода.
+        """
+
+        anki_instance.add_word("python", "питон")
+
+        anki_instance.start_session() 
+        anki_instance.get_random_word()
+        
+        with pytest.raises(ValueError):
+            anki_instance.check_translation("hello", "привет")
+            assert False, (
+                "Проверьте вашу реализацию защиты от накрутки через перевод случайных слов, вместо выданного ранее"
+            )
+
+    def test_attempt_to_translate_word_without_getting_the_word_result_in_ValueError(self, anki_instance):
+        """
+        При активной тренировке метод `check_translation` дожен проверять перевод только в том случае,
+        если было получено новое слово.
+        """
+
+        anki_instance.add_word("python", "питон")
+
+        anki_instance.start_session() 
+        anki_instance.get_random_word()
+        anki_instance.check_translation("python", "питон")
+
+        with pytest.raises(ValueError):
+            anki_instance.check_translation("python", "питон")
+            assert False, (
+                "Проверьте вашу реализацию защиты от накрутки: сейчас можно проверить перевод слова повторно"
+                " без вызова метода `get_random_word()"
+            )
+
+    def test_cannot_change_whole_dict_of_words_if_training_is_active(self, anki_with_words):
+        """При активной тренировке нельзя изменять словарь `words`"""
+
+        anki_with_words.start_session()
+
+        with pytest.raises(ValueError):
+            anki_with_words.words = {"hello": "world"}
+            assert False, (
+                "При активной тренировке нужно запрещать изменять слова через сеттер свойства `words`"
+            )
+
+        anki_with_words.end_session()
+
+        try:
+            anki_with_words.words = {"hello": "world"}
+        except ValueError:
+            assert False, (
+                "После завершения тренировки - нужно разрешать изменять слова через сеттер свойства `words`"
+            )
+
+    def test_start_and_end_session_methods_manage_session_state(self, anki_with_words):
+        """
+        Метод `start_session` должен начинать новую тренировку.
+        Метод `end_session` должен завершать текущую активную сессию тренировки.
+        """
+
+        assert anki_with_words._session_active is False, (
+            "Убедитесь что значение атрибута `_session_active` по-умолчанию выставлено в False."
+        )
+
+        anki_with_words.start_session()
+        assert anki_with_words._session_active, (
+            "Метод `start_session()` должен начинать тренировку, выставляя атрибут `_session_active` в `True`"
+        )
+        assert anki_with_words._session_start_time > 0, (
+            "Метод `start_session()` должен сохранять время начала тренировки в атрибут `_session_start_time`"
+        )
+
+        anki_with_words.end_session()
+        assert anki_with_words._session_active is False, (
+            "Метод `end_session()` должен завершать тренировку, выставляя атрибут `_session_active` в `False`"
+        )
+        assert anki_with_words._session_start_time == 0, (
+            "Метод `end_session()` должен сбрасывать время начала тренировки в значение `0.0`"
+        )
+
+        assert anki_with_words.last_session_stats["total_time"] > 0, (
+            "Метод `end_session()` должен сохранять статистику текущей игровой сессии"
+        )
+
+    def start_session_method_raises_ValueError_if_session_is_already_active(self, anki_with_words):
+        """Если уже активна тренировочная сессия - метод `start_sesion` должен выбрасывать ошибку RuntimeError."""
+
+        anki_with_words.start_session()
+
+        with pytest.raises(RuntimeError):
+            anki_with_words.start_session()
+            assert False, (
+                "В случае активной тренировки, повторный вызов метода `start_session()` должен"
+                " результировать в ошибке RuntimeError"
+            )
+
+    def end_session_method_raises_ValueError_if_session_is_not_active(self, anki_with_words):
+        """Метод `end_session` должен выбрасывать ошибку RuntimeError если тренировочная сессия не активна."""
+
+        with pytest.raises(RuntimeError):
+            anki_with_words.end_session()
+            assert False, (
+                "В случае отсутствия активной тренировки, вызов метода `end_session()` должен"
+                " результировать в ошибке RuntimeError"
+            )
