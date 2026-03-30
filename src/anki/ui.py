@@ -160,11 +160,69 @@ class TextUI:
 
     def train_until_mistake(self) -> None:
         """
-        Заглушка для режима тренировки до первой ошибки.
+        Запускает режим тренировки до первой ошибки.
 
-        Данная функциональность ещё не реализована.
+        Пользователь должен переводить слова по порядку.
+        Тренировка завершается при первой ошибке или вводе STOP_WORD.
+        После завершения выводится статистика: время и счёт.
         """
-        print('Данная функциональность ещё не реализована.')
+        # Проверяем наличие слов перед началом тренировки.
+        try:
+            self._anki_game.get_random_word()
+        except ValueError:
+            print('Слов для тренировки нет. Добавьте слова через меню.')
+            return
+
+        # Запускаем сессию.
+        self._anki_game.start_session()
+        print('Тренировка до первой ошибки началась!')
+        print(f'Для завершения введите "{self.STOP_WORD}".')
+
+        try:
+            while True:
+                # Получаем случайное слово.
+                word = self._anki_game.get_random_word()
+                print(f'\nВаше слово для перевода: {word}')
+
+                # Получаем ответ пользователя.
+                user_input = input('Ваш перевод: ').strip()
+
+                # Проверяем на завершающее слово.
+                if user_input.lower() == self.STOP_WORD.lower():
+                    print('Тренировка завершена пользователем.')
+                    self._anki_game.end_session()
+                    break
+
+                # Проверяем правильность перевода.
+                is_correct = self._anki_game.check_translation(
+                    word, user_input
+                )
+
+                if is_correct:
+                    print('Верно!')
+                else:
+                    print('Ошибка! Тренировка завершена.')
+                    break
+
+        except ValueError as e:
+            print(f'Ошибка: {e}')
+            # Сессия уже завершена в check_translation().
+        except KeyboardInterrupt:
+            print('\nТренировка прервана пользователем.')
+            if self._anki_game._session_active:
+                self._anki_game.end_session()
+        except EOFError:
+            print('\nВвод завершён.')
+            if self._anki_game._session_active:
+                self._anki_game.end_session()
+
+        # Выводим статистику после завершения.
+        stats = self._anki_game.last_session_stats
+        print('\n' + '=' * 40)
+        print('Статистика тренировки:')
+        print(f'Правильных ответов: {stats["correct_answers"]}')
+        print(f'Время игры: {stats["total_time"]:.2f} сек.')
+        print('=' * 40)
 
     def main_loop(self) -> None:
         """

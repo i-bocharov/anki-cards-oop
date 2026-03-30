@@ -35,6 +35,8 @@ class Anki:
         self._session_start_time = 0.0
         # Количество правильных ответов.
         self._session_user_score = 0
+        # Последнее выданное слово в сессии.
+        self._last_session_word: Optional[str] = None
 
         # Информация о последней тренировке.
         self.last_session_stats = {
@@ -178,6 +180,12 @@ class Anki:
         Raises:
             ValueError: Если переданные данные не проходят валидацию.
         """
+        # Защита от изменения слов во время активной сессии.
+        if self._session_active:
+            raise ValueError(
+                'Нельзя менять слова во время активной тренировки.'
+            )
+
         # Делегируем валидацию и нормализацию защищённому методу
         self._words = self._normalize_dict(value)
 
@@ -191,21 +199,27 @@ class Anki:
         self._session_active = True
         self._session_start_time = time.time()
         self._session_user_score = 0
+        self._last_session_word = None
 
     def end_session(self):
         """Завершает текущую тренировочную сессию."""
         if not self._session_active:
             raise RuntimeError('Нельзя завершить неактивную сессию.')
 
+        # Вычисляем время сессии. Гарантируем минимальное значение для
+        # корректной статистики.
+        session_time = max(time.time() - self._session_start_time, 0.001)
+
         self.last_session_stats = {
             "correct_answers": self._session_user_score,
-            "total_time": time.time() - self._session_start_time
+            "total_time": session_time
         }
 
         # Сбрасываем состояние.
         self._session_active = False
         self._session_user_score = 0
         self._session_start_time = 0.0
+        self._last_session_word = None
 
     def add_word(self, word: str, translation: str) -> None:
         """
@@ -237,7 +251,13 @@ class Anki:
                 'Коллекция слов пуста. Добавьте слова.'
             )
 
-        return random.choice(list(self._words.keys()))
+        word = random.choice(list(self._words.keys()))
+
+        # Сохраняем последнее выданное слово для активной сессии.
+        if self._session_active:
+            self._last_session_word = word
+
+        return word
 
     def get_random_word_pair(self) -> Tuple[str, str]:
         """
@@ -290,7 +310,34 @@ class Anki:
                 f'Слово "{normalized_word}" отсутствует в коллекции.'
             )
 
-        return self._words[normalized_word] == normalized_translation
+        # Проверка для активной сессии: слово должно совпадать с последним
+        # выданным.
+        if self._session_active:
+            if self._last_session_word is None:
+                self.end_session()
+                raise ValueError(
+                    'Сначала получите слово через get_random_word().'
+                )
+
+            if normalized_word != self._last_session_word:
+                self.end_session()
+                raise ValueError(
+                    'Работаем только с последним выданным словом.'
+                )
+
+        is_correct = self._words[normalized_word] == normalized_translation
+
+        # Логика сессии: правильный ответ увеличивает счёт, неправильный
+        # завершает сессию.
+        if self._session_active:
+            if is_correct:
+                self._session_user_score += 1
+                # Сбрасываем последнее слово после успешной проверки.
+                self._last_session_word = None
+            else:
+                self.end_session()
+
+        return is_correct
 
     def get_translation(self, word: str) -> str:
         """
