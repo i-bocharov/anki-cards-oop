@@ -5,51 +5,33 @@ from typing import Union
 from anki.anki import Anki
 from anki.loader import (
     BaseFileLoader,
-    TextFileLoader,
-    TSVFileLoader,
-    JsonFileLoader,
-    JsonNetworkLoader
+    JsonNetworkLoader,
+    loader_registry
 )
 from anki.ui import TextUI
 
 
 def get_loader(source: str) -> Union[BaseFileLoader, JsonNetworkLoader]:
     """
-    Выбирает реализацию загрузчика в зависимости от источника.
-
-    Если source начинается с http/https, создаёт JsonNetworkLoader.
-    Иначе выбирает загрузчик по расширению файла.
+    Автоматически выбирает конкретную реализацию загрузчика,
+    в зависимости от `source`.
 
     Args:
         source (str): Путь к файлу или ссылка на сетевой ресурс.
 
     Returns:
         Union[BaseFileLoader, JsonNetworkLoader]: Экземпляр загрузчика.
-
-    Raises:
-        ValueError: Если источник не поддерживается.
     """
+    if source.startswith('http'):
+        identity = 'http'
+        args = {'url': source}
+    else:
+        identity = pathlib.Path(source).suffix
+        args = {'file_path': source}
 
-    # Сначала проверяем, является ли источник сетевой ссылкой.
-    # Это должно идти ПЕРЕД проверкой расширения файла.
-    if source.startswith('http://') or source.startswith('https://'):
-        return JsonNetworkLoader(url=source)
+    loader_cls = loader_registry.get_loader(identity)
 
-    # Для локальных файлов выбираем по расширению.
-    loaders = {
-        '.txt': TextFileLoader,
-        '.tsv': TSVFileLoader,
-        '.json': JsonFileLoader
-    }
-
-    file_path = pathlib.Path(source)
-
-    try:
-        # suffix возвращает расширение файла
-        loader = loaders[file_path.suffix]
-        return loader(file_path=str(file_path))
-    except KeyError:
-        raise ValueError(f'Неизвестный тип источника слов: {source}')
+    return loader_cls(**args)
 
 
 def main():

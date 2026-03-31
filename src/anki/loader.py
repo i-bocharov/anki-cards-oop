@@ -4,6 +4,53 @@ import json
 import requests
 
 
+class LoaderRegistry:
+    """
+    Реестр загрузчиков для динамической регистрации классов.
+    """
+    def __init__(self):
+        self._registry: Dict[str, type] = {}
+
+    def register(self, ident: str):
+        """
+        Регистрирует класс загрузчик в реестре `self._registry`.
+
+        Args:
+            ident (str): Идентификатор загрузчика
+                (например, '.txt' или 'http').
+
+        Returns:
+            Callable: Декоратор, который регистрирует класс и
+                возвращает его без изменений.
+        """
+        def decorator(cls: type) -> type:
+            self._registry[ident] = cls
+            return cls
+
+        return decorator
+
+    def get_loader(self, ident: str) -> type:
+        """
+        Выбирает конкретный класс загрузчика по идентификатору.
+
+        Args:
+            ident (str): Идентификатор загрузчика.
+
+        Returns:
+            type: Класс загрузчика.
+
+        Raises:
+            ValueError: Если загрузчик с таким идентификатором не найден.
+        """
+        try:
+            return self._registry[ident]
+        except KeyError:
+            raise ValueError(f'Неизвестный тип источника слов: {ident}')
+
+
+loader_registry = LoaderRegistry()
+
+
 class BaseFileLoader:
     """
     Базовый класс для загрузчиков файлов со словами.
@@ -115,6 +162,7 @@ class BaseFileLoader:
         raise NotImplementedError
 
 
+@loader_registry.register('.txt')
 class TextFileLoader(BaseFileLoader):
     """
     Загрузчик для текстовых файлов формата CSV (разделитель запятая).
@@ -169,6 +217,7 @@ class TextFileLoader(BaseFileLoader):
             file_object.write(f'{clean_word},{clean_translation}\n')
 
 
+@loader_registry.register('.tsv')
 class TSVFileLoader(BaseFileLoader):
     """
     Загрузчик для TSV файлов (разделитель табуляция).
@@ -221,6 +270,7 @@ class TSVFileLoader(BaseFileLoader):
             file_object.write(f'{clean_word}\t{clean_translation}\n')
 
 
+@loader_registry.register('.json')
 class JsonFileLoader(BaseFileLoader):
     """
     Загрузчик для файлов формата JSON.
@@ -266,6 +316,7 @@ class JsonFileLoader(BaseFileLoader):
         )
 
 
+@loader_registry.register('http')
 class JsonNetworkLoader:
     """
     Загрузчик слов из сетевого источника по ссылке.
