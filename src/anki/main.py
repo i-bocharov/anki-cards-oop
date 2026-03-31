@@ -1,6 +1,6 @@
 import argparse
 import pathlib
-from typing import Union
+from typing import Union, Optional, Type
 
 from anki.anki import Anki
 from anki.loader import (
@@ -9,6 +9,61 @@ from anki.loader import (
     loader_registry
 )
 from anki.ui import TextUI
+
+
+class GameContext:
+    """
+    Контекстный менеджер для управления жизненным циклом игры.
+
+    Гарантирует загрузку слов при входе в контекст и сохранение при выходе,
+    даже если в теле контекста возникли ошибки.
+    """
+    def __init__(
+            self,
+            loader: Union[BaseFileLoader, JsonNetworkLoader],
+            anki: Anki
+    ):
+        """
+        Инициализация контекстного менеджера.
+
+        Args:
+            loader (Union[BaseFileLoader, JsonNetworkLoader]): Загрузчик слов.
+            anki (Anki): Экземпляр игры Anki.
+        """
+        self.loader = loader
+        self.anki = anki
+
+    def __enter__(self) -> 'GameContext':
+        """
+        Загружает слова из источника и добавляет их в экземпляр Anki.
+
+        Returns:
+            GameContext: Сам экземпляр контекстного менеджера.
+        """
+        words = self.loader.load_words()
+        self.anki.words = words
+        return self
+
+    def __exit__(
+            self,
+            exc_type: Optional[Type[BaseException]],
+            exc_val: Optional[BaseException],
+            exc_tb: Optional[object]
+    ) -> None:
+        """
+        Сохраняет слова через загрузчик при выходе из контекста.
+
+        Гарантирует сохранение даже при возникновении ошибок в теле контекста.
+        Ошибки не подавляются и передаются дальше.
+
+        Args:
+            exc_type (Optional[Type[BaseException]]): Тип возникшего исключения
+                (если было).
+            exc_val (Optional[BaseException]): Значение исключения (если было).
+            exc_tb (Optional[object]): Трассировка исключения (если было).
+        """
+        self.loader.save_words(self.anki.words)
+        # Возвращаем None (неявно), чтобы исключения не подавлялись.
 
 
 def get_loader(source: str) -> Union[BaseFileLoader, JsonNetworkLoader]:
@@ -51,12 +106,11 @@ def main():
 
     loader = get_loader(args.source)
 
-    anki = Anki(words=loader.load_words())
+    anki = Anki()
 
-    ui = TextUI(anki)
-    ui.main_loop()
-
-    loader.save_words(anki.words)
+    with GameContext(loader, anki):
+        ui = TextUI(anki)
+        ui.main_loop()
 
 
 if __name__ == "__main__":
