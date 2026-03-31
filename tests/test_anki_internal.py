@@ -314,7 +314,7 @@ class TestAnkiClassDocstrings:
             "В докстринге метода `add_word` должен быть описаны параметр `translation`"
         )
 
-    def test_Anki_class_words_proeprty_has_docstring(self, anki_cls):
+    def test_Anki_class_words_property_has_docstring(self, anki_cls):
         words_obj = getattr(anki_cls, "words", None)
         assert words_obj.__doc__, (
             "Для свойства `words` класса `Anki` должен быть разработан докстринг"
@@ -431,6 +431,7 @@ class TestAnkiMagicMethods:
         assert len(anki_with_words) == len(anki_with_words.words), (
             "Убедитесь, что вызов `len()` с экземпляром `Anki` возвращает правильное количество слов"
         )
+
 
 class TestAnkiGetWordMethod:
 
