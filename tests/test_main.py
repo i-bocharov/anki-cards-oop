@@ -29,8 +29,8 @@ def game_context():
         ("/tmp/words.txt", TextFileLoader),   
         ("words.tsv", TSVFileLoader),   
         ("words.json", JsonFileLoader),   
-        ("http://example.com/words.txt", JsonNetworkLoader),   
-        ("https://example.com/words.txt", JsonNetworkLoader),   
+        ("http://example.com/words", JsonNetworkLoader),   
+        ("https://example.com/words", JsonNetworkLoader),   
     ]
 )
 def test_get_loader_return_correct_loader(source, loader_cls):
