@@ -1,12 +1,12 @@
 import argparse
 import pathlib
-from typing import Union, Optional, Type
+from typing import Literal
+from types import TracebackType
 
 from anki.anki import Anki
 from anki.loader import (
-    BaseFileLoader,
-    JsonNetworkLoader,
-    loader_registry
+    loader_registry,
+    LoaderProtocol
 )
 from anki.ui import TextUI
 
@@ -18,20 +18,16 @@ class GameContext:
     Гарантирует загрузку слов при входе в контекст и сохранение при выходе,
     даже если в теле контекста возникли ошибки.
     """
-    def __init__(
-            self,
-            loader: Union[BaseFileLoader, JsonNetworkLoader],
-            anki: Anki
-    ):
+    def __init__(self, loader: LoaderProtocol, anki: Anki) -> None:
         """
         Инициализация контекстного менеджера.
 
         Args:
-            loader (Union[BaseFileLoader, JsonNetworkLoader]): Загрузчик слов.
+            loader (LoaderProtocol): Загрузчик слов.
             anki (Anki): Экземпляр игры Anki.
         """
-        self.loader = loader
-        self.anki = anki
+        self.loader: LoaderProtocol = loader
+        self.anki: Anki = anki
 
     def __enter__(self) -> 'GameContext':
         """
@@ -46,10 +42,10 @@ class GameContext:
 
     def __exit__(
             self,
-            exc_type: Optional[Type[BaseException]],
-            exc_val: Optional[BaseException],
-            exc_tb: Optional[object]
-    ) -> None:
+            exc_type: type[BaseException] | None,
+            exc_val: BaseException | None,
+            exc_tb: TracebackType | None
+    ) -> Literal[False]:
         """
         Сохраняет слова через загрузчик при выходе из контекста.
 
@@ -57,16 +53,19 @@ class GameContext:
         Ошибки не подавляются и передаются дальше.
 
         Args:
-            exc_type (Optional[Type[BaseException]]): Тип возникшего исключения
-                (если было).
-            exc_val (Optional[BaseException]): Значение исключения (если было).
-            exc_tb (Optional[object]): Трассировка исключения (если было).
+            exc_type (type[BaseException] | None): Тип возникшего исключения.
+            exc_val (BaseException | None): Значение исключения.
+            exc_tb (TracebackType | None): Трассировка исключения.
+
+        Returns:
+            Literal[False]: Исключения не подавляются.
         """
         self.loader.save_words(self.anki.words)
-        # Возвращаем None (неявно), чтобы исключения не подавлялись.
+
+        return False
 
 
-def get_loader(source: str) -> Union[BaseFileLoader, JsonNetworkLoader]:
+def get_loader(source: str) -> LoaderProtocol:
     """
     Автоматически выбирает конкретную реализацию загрузчика,
     в зависимости от `source`.
@@ -75,11 +74,11 @@ def get_loader(source: str) -> Union[BaseFileLoader, JsonNetworkLoader]:
         source (str): Путь к файлу или ссылка на сетевой ресурс.
 
     Returns:
-        Union[BaseFileLoader, JsonNetworkLoader]: Экземпляр загрузчика.
+        LoaderProtocol: Экземпляр загрузчика.
     """
     if source.startswith('http'):
         identity = 'http'
-        args = {'url': source}
+        args: dict[str, str] = {'url': source}
     else:
         identity = pathlib.Path(source).suffix
         args = {'file_path': source}
@@ -89,7 +88,7 @@ def get_loader(source: str) -> Union[BaseFileLoader, JsonNetworkLoader]:
     return loader_cls(**args)
 
 
-def main():
+def main() -> None:
     # Создали объект парсера аргументов командной строки.
     parser = argparse.ArgumentParser(prog='anki')
 

@@ -1,17 +1,27 @@
 from pathlib import Path
-from typing import Dict, Optional, TextIO
+from typing import Protocol, Callable, TextIO
 import json
 import requests
+
+
+class LoaderProtocol(Protocol):
+    """
+    Протокол для загрузчиков. Гарантирует наличие методов load/save.
+    """
+    def load_words(self) -> dict[str, str]: ...
+    def save_words(self, words: dict[str, str]) -> None: ...
 
 
 class LoaderRegistry:
     """
     Реестр загрузчиков для динамической регистрации классов.
     """
-    def __init__(self):
-        self._registry: Dict[str, type] = {}
+    def __init__(self) -> None:
+        self._registry: dict[str, type[LoaderProtocol]] = {}
 
-    def register(self, ident: str):
+    def register(self, ident: str) -> Callable[
+        [type[LoaderProtocol]], type[LoaderProtocol]
+    ]:
         """
         Регистрирует класс загрузчик в реестре `self._registry`.
 
@@ -20,16 +30,16 @@ class LoaderRegistry:
                 (например, '.txt' или 'http').
 
         Returns:
-            Callable: Декоратор, который регистрирует класс и
-                возвращает его без изменений.
+            Callable[[type[LoaderProtocol]], type[LoaderProtocol]]:
+                Декоратор, который регистрирует класс и возвращает его.
         """
-        def decorator(cls: type) -> type:
+        def decorator(cls: type[LoaderProtocol]) -> type[LoaderProtocol]:
             self._registry[ident] = cls
             return cls
 
         return decorator
 
-    def get_loader(self, ident: str) -> type:
+    def get_loader(self, ident: str) -> type[LoaderProtocol]:
         """
         Выбирает конкретный класс загрузчика по идентификатору.
 
@@ -37,7 +47,7 @@ class LoaderRegistry:
             ident (str): Идентификатор загрузчика.
 
         Returns:
-            type: Класс загрузчика.
+            type[LoaderProtocol]: Класс загрузчика.
 
         Raises:
             ValueError: Если загрузчик с таким идентификатором не найден.
@@ -59,14 +69,14 @@ class BaseFileLoader:
     проверка путей), оставляя реализацию формата данных дочерним классам.
     """
 
-    DEFAULT_FILE_PATH = './words.txt'
+    DEFAULT_FILE_PATH: str = './words.txt'
 
-    def __init__(self, *, file_path: Optional[str] = None):
+    def __init__(self, *, file_path: str | None = None) -> None:
         """
         Инициализация загрузчика.
 
         Args:
-            file_path (str, optional): Путь к файлу. Если не указан,
+            file_path (str | None): Путь к файлу. Если не указан,
                 используется DEFAULT_FILE_PATH.
 
         Raises:
@@ -78,19 +88,19 @@ class BaseFileLoader:
             # по умолчанию, определённое в теле класса.
             file_path = self.DEFAULT_FILE_PATH
 
-        self._file_path = Path(file_path)
+        self._file_path: Path = Path(file_path)
 
         if self._file_path.exists() and self._file_path.is_dir():
             raise ValueError(
                 f'Путь {file_path} является директорией, а должен быть файлом.'
             )
 
-    def load_words(self) -> Dict[str, str]:
+    def load_words(self) -> dict[str, str]:
         """
         Загружает слова из файла.
 
         Returns:
-            Dict[str, str]: Словарь пар слово-перевод. Пустой словарь,
+            dict[str, str]: Словарь пар слово-перевод. Пустой словарь,
                 если файл не существует.
         """
         if not self._file_path.exists():
@@ -99,12 +109,12 @@ class BaseFileLoader:
         with self._file_path.open('r', encoding='utf-8') as f:
             return self._load_from_file(f)
 
-    def save_words(self, words: Dict[str, str]) -> None:
+    def save_words(self, words: dict[str, str]) -> None:
         """
         Сохраняет слова в файл.
 
         Args:
-            words (Dict[str, str]): Словарь с словами и переводами.
+            words (dict[str, str]): Словарь с словами и переводами.
 
         Raises:
             ValueError: Если параметр words не является словарем или
@@ -123,9 +133,9 @@ class BaseFileLoader:
                 )
 
         with self._file_path.open('w', encoding='utf-8') as f:
-            return self._save_to_file(words, f)
+            self._save_to_file(words, f)
 
-    def _load_from_file(self, file_object: TextIO) -> Dict[str, str]:
+    def _load_from_file(self, file_object: TextIO) -> dict[str, str]:
         """
         Реализует логику загрузки данных определённого формата из file_object.
 
@@ -136,7 +146,7 @@ class BaseFileLoader:
                 из которого идёт чтение данных.
 
         Returns:
-            Dict[str, str]: Словарь с загруженными словами.
+            dict[str, str]: Словарь с загруженными словами.
 
         Raises:
             NotImplementedError: Если метод не переопределён в наследнике.
@@ -144,7 +154,7 @@ class BaseFileLoader:
         raise NotImplementedError
 
     def _save_to_file(
-            self, words: Dict[str, str], file_object: TextIO
+            self, words: dict[str, str], file_object: TextIO
     ) -> None:
         """
         Реализует логику сохранения слов в определённом формате в файл.
@@ -152,7 +162,7 @@ class BaseFileLoader:
         Метод должен быть переопределён в наследниках.
 
         Args:
-            words (Dict[str, str]): Словарь с словами и переводами.
+            words (dict[str, str]): Словарь с словами и переводами.
             file_object (TextIO): FileLike объект,
                 в который идёт запись данных.
 
@@ -170,9 +180,9 @@ class TextFileLoader(BaseFileLoader):
     Формат записи: "слово,перевод"
     """
 
-    DEFAULT_FILE_PATH = './words.txt'
+    DEFAULT_FILE_PATH: str = './words.txt'
 
-    def _load_from_file(self, file_object: TextIO) -> Dict[str, str]:
+    def _load_from_file(self, file_object: TextIO) -> dict[str, str]:
         """
         Парсит строки файла в словарь (формат CSV).
 
@@ -180,9 +190,9 @@ class TextFileLoader(BaseFileLoader):
             file_object (TextIO): Объект файла для чтения.
 
         Returns:
-            Dict[str, str]: Словарь пар слово-перевод.
+            dict[str, str]: Словарь пар слово-перевод.
         """
-        words: Dict[str, str] = {}
+        words: dict[str, str] = {}
         for line in file_object:
             line_content = line.strip()
             if not line_content:
@@ -199,13 +209,13 @@ class TextFileLoader(BaseFileLoader):
         return words
 
     def _save_to_file(
-            self, words: Dict[str, str], file_object: TextIO
+            self, words: dict[str, str], file_object: TextIO
     ) -> None:
         """
         Записывает словарь в файл в формате CSV.
 
         Args:
-            words (Dict[str, str]): Словарь для сохранения.
+            words (dict[str, str]): Словарь для сохранения.
             file_object (TextIO): Объект файла для записи.
         """
         for word, translation in words.items():
@@ -225,9 +235,9 @@ class TSVFileLoader(BaseFileLoader):
     Формат записи: "слово\\tперевод"
     """
 
-    DEFAULT_FILE_PATH = './words.tsv'
+    DEFAULT_FILE_PATH: str = './words.tsv'
 
-    def _load_from_file(self, file_object: TextIO) -> Dict[str, str]:
+    def _load_from_file(self, file_object: TextIO) -> dict[str, str]:
         """
         Парсит строки TSV файла в словарь.
 
@@ -235,9 +245,9 @@ class TSVFileLoader(BaseFileLoader):
             file_object (TextIO): Объект файла для чтения.
 
         Returns:
-            Dict[str, str]: Словарь пар слово-перевод.
+            dict[str, str]: Словарь пар слово-перевод.
         """
-        words: Dict[str, str] = {}
+        words: dict[str, str] = {}
         for line in file_object:
             line_content = line.strip()
             if not line_content:
@@ -253,13 +263,13 @@ class TSVFileLoader(BaseFileLoader):
         return words
 
     def _save_to_file(
-            self, words: Dict[str, str], file_object: TextIO
+            self, words: dict[str, str], file_object: TextIO
     ) -> None:
         """
         Записывает словарь в файл в формате TSV.
 
         Args:
-            words (Dict[str, str]): Словарь для сохранения.
+            words (dict[str, str]): Словарь для сохранения.
             file_object (TextIO): Объект файла для записи.
         """
         for word, translation in words.items():
@@ -278,9 +288,9 @@ class JsonFileLoader(BaseFileLoader):
     Формат записи: {"слово": "перевод", ...}
     """
 
-    DEFAULT_FILE_PATH = './words.json'
+    DEFAULT_FILE_PATH: str = './words.json'
 
-    def _load_from_file(self, file_object: TextIO) -> Dict[str, str]:
+    def _load_from_file(self, file_object: TextIO) -> dict[str, str]:
         """
         Загружает и парсит JSON данные из файла.
 
@@ -288,24 +298,28 @@ class JsonFileLoader(BaseFileLoader):
             file_object (TextIO): Объект файла для чтения.
 
         Returns:
-            Dict[str, str]: Словарь пар слово-перевод.
+            dict[str, str]: Словарь пар слово-перевод.
         """
-        data = json.load(file_object)
+        # Явная типизация и валидация.
+        words: dict[str, str] = json.load(file_object)
 
-        # Валидация: на всякий случай убеждаемся, что данные — это словарь.
-        if not isinstance(data, dict):
+        if not isinstance(words, dict):
             return {}
 
-        return data
+        for k, v in words.items():
+            if not isinstance(k, str) or not isinstance(v, str):
+                raise ValueError('Некорректные данные в файле JSON.')
+
+        return words
 
     def _save_to_file(
-            self, words: Dict[str, str], file_object: TextIO
+            self, words: dict[str, str], file_object: TextIO
     ) -> None:
         """
         Записывает словарь в файл в формате JSON.
 
         Args:
-            words (Dict[str, str]): Словарь для сохранения.
+            words (dict[str, str]): Словарь для сохранения.
             file_object (TextIO): Объект файла для записи.
         """
         json.dump(
@@ -324,21 +338,24 @@ class JsonNetworkLoader:
     Получает JSON данные по указанному URL и парсит их в словарь.
     Не наследуется от BaseFileLoader, так как работает с сетью, а не с файлами.
     """
-    def __init__(self, url: str):
+    def __init__(self, url: str) -> None:
         """
         Инициализирует загрузчик с указанным URL.
 
         Args:
             url (str): Ссылка на источник данных в формате JSON.
         """
-        self.url = url
+        if not url.startswith(('http://', 'https://')):
+            raise ValueError('Небезопасный URL. Используйте http или https.')
 
-    def load_words(self) -> Dict[str, str]:
+        self.url: str = url
+
+    def load_words(self) -> dict[str, str]:
         """
         Загружает слова из сетевого источника по ссылке.
 
         Returns:
-            Dict[str, str]: Словарь пар слово-перевод.
+            dict[str, str]: Словарь пар слово-перевод.
 
         Raises:
             requests.RequestException: Если произошла ошибка при запросе.
@@ -346,16 +363,24 @@ class JsonNetworkLoader:
         """
         response = requests.get(self.url)
         response.raise_for_status()
-        return response.json()
 
-    def save_words(self, words: Dict[str, str]) -> None:
+        # Явная типизация и валидация.
+        words: dict[str, str] = response.json()
+
+        for k, v in words.items():
+            if not isinstance(k, str) or not isinstance(v, str):
+                raise ValueError('Некорректные данные получены по сети.')
+
+        return words
+
+    def save_words(self, words: dict[str, str]) -> None:
         """
         Метод-заглушка для сохранения слов.
 
         Для сетевого загрузчика сохранение не реализовано.
 
         Args:
-            words (Dict[str, str]): Словарь с словами и переводами.
+            words (dict[str, str]): Словарь с словами и переводами.
         """
         # Заглушка: сетевой загрузчик не поддерживает сохранение.
         pass

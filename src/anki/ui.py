@@ -1,5 +1,8 @@
 import textwrap
-from anki.anki import Anki
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from anki.anki import Anki
 
 
 class TextUI:
@@ -25,19 +28,19 @@ class TextUI:
         5. Выход
         ''')
 
-    def __init__(self, anki_game: Anki) -> None:
+    def __init__(self, anki_game: 'Anki') -> None:
         """
         Инициализирует интерфейс с экземпляром игры Anki.
 
         Args:
-            anki_game (Anki): Экземпляр класса Anki для игровой логики.
+            anki_game ('Anki'): Экземпляр класса Anki для игровой логики.
 
         Raises:
             ValueError: Если переданный аргумент не является экземпляром Anki.
         """
 
         # Сохраняем ссылку на экземпляр Anki для использования в методах.
-        self._anki_game = anki_game
+        self._anki_game: 'Anki' = anki_game
 
     def start_game(self) -> None:
         """
@@ -88,7 +91,7 @@ class TextUI:
                 print(f'Ошибка: {e}')
                 break
             except KeyboardInterrupt:
-                print('\nИгра перрвана пользователем.')
+                print('\nИгра прервана пользователем.')
                 break
             except EOFError:
                 print('\nВвод завершён.')
@@ -144,7 +147,7 @@ class TextUI:
         Формат вывода: "слово - перевод" (по одной паре на строку).
         """
         # Используем магический метод __len__ для получения количества слов.
-        total_words = len(self._anki_game)
+        total_words: int = len(self._anki_game)
 
         # Проверяем наличие слов.
         if not total_words:
@@ -217,7 +220,7 @@ class TextUI:
                 self._anki_game.end_session()
 
         # Выводим статистику после завершения.
-        stats = self._anki_game.last_session_stats
+        stats: dict[str, float | int] = self._anki_game.last_session_stats
         print('\n' + '=' * 40)
         print('Статистика тренировки:')
         print(f'Правильных ответов: {stats["correct_answers"]}')

@@ -1,4 +1,4 @@
-from typing import Dict, Iterator, Optional, Tuple
+from collections.abc import Iterator
 import random
 import time
 
@@ -12,13 +12,13 @@ class Anki:
     Реализует протоколы итерируемого объекта и вычисления длины.
     """
 
-    def __init__(self, *, words: Optional[Dict[str, str]] = None):
+    def __init__(self, *, words: dict[str, str] | None = None) -> None:
         """
         Инициализирует коллекцию с валидацией и нормализацией данных.
         Создает защищенный атрибут _words для хранения пар.
 
         Args:
-            words (Optional[Dict[str, str]]): Словарь пар слово-перевод.
+            words (dict[str, str] | None): Словарь пар слово-перевод.
                 По умолчанию None (создается пустой словарь).
         """
         # Защита от изменяемого объекта по умолчанию.
@@ -27,19 +27,19 @@ class Anki:
 
         # Валидация и нормализация через защищённый метод.
         # Устраняет дублирование кода с сеттером.
-        self._words: Dict[str, str] = self._normalize_dict(words)
+        self._words: dict[str, str] = self._normalize_dict(words)
 
         # Начата ли сессия тренировки до первой ошибки.
-        self._session_active = False
+        self._session_active: bool = False
         # Время начала тренировки.
-        self._session_start_time = 0.0
+        self._session_start_time: float | None = 0.0
         # Количество правильных ответов.
-        self._session_user_score = 0
+        self._session_user_score: int = 0
         # Последнее выданное слово в сессии.
-        self._last_session_word: Optional[str] = None
+        self._last_session_word: str | None = None
 
         # Информация о последней тренировке.
-        self.last_session_stats = {
+        self.last_session_stats: dict[str, float | int] = {
             "correct_answers": 0,
             "total_time": 0.0,
         }
@@ -77,12 +77,12 @@ class Anki:
         """
         return f'Количество слов в коллекции Anki: {len(self._words)}'
 
-    def __iter__(self) -> Iterator[Tuple[str, str]]:
+    def __iter__(self) -> Iterator[tuple[str, str]]:
         """
         Возвращает итератор по парам слово-перевод.
 
         Returns:
-            Iterator[Tuple[str, str]]: Итератор по кортежам (слово, перевод).
+            Iterator[tuple[str, str]]: Итератор по кортежам (слово, перевод).
         """
         return iter(self._words.items())
 
@@ -117,7 +117,7 @@ class Anki:
 
         return word.strip().lower()
 
-    def _normalize_dict(self, data: Dict[str, str]) -> Dict[str, str]:
+    def _normalize_dict(self, data: dict[str, str]) -> dict[str, str]:
         """
         Валидирует и нормализует весь словарь слов.
 
@@ -126,10 +126,10 @@ class Anki:
         нормализованные строки.
 
         Args:
-            data (Dict[str, str]): Словарь для нормализации.
+            data (dict[str, str]): Словарь для нормализации.
 
         Returns:
-            Dict[str, str]: Новый словарь с нормализованными ключами и
+            dict[str, str]: Новый словарь с нормализованными ключами и
                 значениями.
 
         Raises:
@@ -142,7 +142,7 @@ class Anki:
                 f'получено: {type(data).__name__}'
             )
 
-        normalized: Dict[str, str] = {}
+        normalized: dict[str, str] = {}
         for key, value in data.items():
             # normalize_word выбросит ValueError, если ключ или значение не
             # строка.
@@ -153,7 +153,7 @@ class Anki:
         return normalized
 
     @property
-    def words(self) -> Dict[str, str]:
+    def words(self) -> dict[str, str]:
         """
         Возвращает копию словаря слов.
 
@@ -161,21 +161,21 @@ class Anki:
         внутреннего состояния объекта (_words) извне.
 
         Returns:
-            Dict[str, str]: Копия словаря пар слово-перевод.
+            dict[str, str]: Копия словаря пар слово-перевод.
         """
         # Создаем поверхностную копию. Так как значения - неизменяемые строки,
         # глубокое копирование не требуется, что улучшает производительность.
         return {**self._words}
 
     @words.setter
-    def words(self, value: Dict[str, str]) -> None:
+    def words(self, value: dict[str, str]) -> None:
         """
         Устанавливает новый словарь слов с валидацией и нормализацией.
 
         Сеттер использует _normalize_dict для обеспечения целостности данных.
 
         Args:
-            value (Dict[str, str]): Новый словарь пар слово-перевод.
+            value (dict[str, str]): Новый словарь пар слово-перевод.
 
         Raises:
             ValueError: Если переданные данные не проходят валидацию.
@@ -189,7 +189,7 @@ class Anki:
         # Делегируем валидацию и нормализацию защищённому методу
         self._words = self._normalize_dict(value)
 
-    def start_session(self):
+    def start_session(self) -> None:
         """Начинает новую тренировочную сессию."""
         if self._session_active:
             raise RuntimeError(
@@ -201,14 +201,16 @@ class Anki:
         self._session_user_score = 0
         self._last_session_word = None
 
-    def end_session(self):
+    def end_session(self) -> None:
         """Завершает текущую тренировочную сессию."""
         if not self._session_active:
             raise RuntimeError('Нельзя завершить неактивную сессию.')
 
         # Вычисляем время сессии. Гарантируем минимальное значение для
         # корректной статистики.
-        session_time = max(time.time() - self._session_start_time, 0.001)
+        session_time = max(
+            time.time() - (self._session_start_time or 0), 0.001
+        )
 
         self.last_session_stats = {
             "correct_answers": self._session_user_score,
@@ -218,7 +220,7 @@ class Anki:
         # Сбрасываем состояние.
         self._session_active = False
         self._session_user_score = 0
-        self._session_start_time = 0.0
+        self._session_start_time = None
         self._last_session_word = None
 
     def add_word(self, word: str, translation: str) -> None:
@@ -259,12 +261,12 @@ class Anki:
 
         return word
 
-    def get_random_word_pair(self) -> Tuple[str, str]:
+    def get_random_word_pair(self) -> tuple[str, str]:
         """
         Возвращает случайную пару (слово, перевод) для игрового режима.
 
         Returns:
-            Tuple[str, str]: Кортеж из слова и его перевода.
+            tuple[str, str]: Кортеж из слова и его перевода.
 
         Raises:
             ValueError: Если коллекция слов пуста.
