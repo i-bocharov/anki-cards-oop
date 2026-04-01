@@ -1,15 +1,19 @@
 from pathlib import Path
-from typing import Protocol, Callable, TextIO
+from typing import Protocol, Callable, TextIO, Self
 import json
 import requests
 
 
 class LoaderProtocol(Protocol):
     """
-    Протокол для загрузчиков. Гарантирует наличие методов load/save.
+    Протокол для загрузчиков.
+    Гарантирует наличие методов load/save/from_source.
     """
     def load_words(self) -> dict[str, str]: ...
     def save_words(self, words: dict[str, str]) -> None: ...
+
+    @classmethod
+    def from_source(cls, source: str) -> Self: ...
 
 
 class LoaderRegistry:
@@ -17,45 +21,51 @@ class LoaderRegistry:
     Реестр загрузчиков для динамической регистрации классов.
     """
     def __init__(self) -> None:
-        self._registry: dict[str, type[LoaderProtocol]] = {}
+        self._registry: dict[
+            type[LoaderProtocol],
+            Callable[[str], bool]
+        ] = {}
 
-    def register(self, ident: str) -> Callable[
+    def register(
+        self,
+        predicate: Callable[[str], bool],
+    ) -> Callable[
         [type[LoaderProtocol]], type[LoaderProtocol]
     ]:
         """
-        Регистрирует класс загрузчик в реестре `self._registry`.
+        Регистрирует класс загрузчика с функцией-предикат.
 
         Args:
-            ident (str): Идентификатор загрузчика
-                (например, '.txt' или 'http').
+            predicate (Callable[[str], bool]): Функция, определяющая,
+                подходит ли загрузчик для данного источника.
 
         Returns:
             Callable[[type[LoaderProtocol]], type[LoaderProtocol]]:
                 Декоратор, который регистрирует класс и возвращает его.
         """
         def decorator(cls: type[LoaderProtocol]) -> type[LoaderProtocol]:
-            self._registry[ident] = cls
+            self._registry[cls] = predicate
             return cls
 
         return decorator
 
-    def get_loader(self, ident: str) -> type[LoaderProtocol]:
+    def get_loader(self, source: str) -> type[LoaderProtocol]:
         """
-        Выбирает конкретный класс загрузчика по идентификатору.
+        Находит подходящий загрузчик для источника.
 
         Args:
-            ident (str): Идентификатор загрузчика.
+            source (str): Путь или URL источника.
 
         Returns:
             type[LoaderProtocol]: Класс загрузчика.
 
         Raises:
-            ValueError: Если загрузчик с таким идентификатором не найден.
+            ValueError: Если подходящий загрузчик не найден.
         """
-        try:
-            return self._registry[ident]
-        except KeyError:
-            raise ValueError(f'Неизвестный тип источника слов: {ident}')
+        for loader_cls, predicate in self._registry.items():
+            if predicate(source):
+                return loader_cls
+        raise ValueError(f'Неизвестный источник: {source}')
 
 
 loader_registry = LoaderRegistry()
@@ -172,7 +182,7 @@ class BaseFileLoader:
         raise NotImplementedError
 
 
-@loader_registry.register('.txt')
+@loader_registry.register(lambda s: s.endswith('.txt'))
 class TextFileLoader(BaseFileLoader):
     """
     Загрузчик для текстовых файлов формата CSV (разделитель запятая).
@@ -181,6 +191,19 @@ class TextFileLoader(BaseFileLoader):
     """
 
     DEFAULT_FILE_PATH: str = './words.txt'
+
+    @classmethod
+    def from_source(cls, source: str) -> Self:
+        """
+        Создаёт экземпляр загрузчика из источника.
+
+        Args:
+            source (str): Путь к файлу.
+
+        Returns:
+            Self: Экземпляр TextFileLoader.
+        """
+        return cls(file_path=source)
 
     def _load_from_file(self, file_object: TextIO) -> dict[str, str]:
         """
@@ -227,7 +250,7 @@ class TextFileLoader(BaseFileLoader):
             file_object.write(f'{clean_word},{clean_translation}\n')
 
 
-@loader_registry.register('.tsv')
+@loader_registry.register(lambda s: s.endswith('.tsv'))
 class TSVFileLoader(BaseFileLoader):
     """
     Загрузчик для TSV файлов (разделитель табуляция).
@@ -236,6 +259,10 @@ class TSVFileLoader(BaseFileLoader):
     """
 
     DEFAULT_FILE_PATH: str = './words.tsv'
+
+    @classmethod
+    def from_source(cls, source: str) -> Self:
+        return cls(file_path=source)
 
     def _load_from_file(self, file_object: TextIO) -> dict[str, str]:
         """
@@ -280,7 +307,7 @@ class TSVFileLoader(BaseFileLoader):
             file_object.write(f'{clean_word}\t{clean_translation}\n')
 
 
-@loader_registry.register('.json')
+@loader_registry.register(lambda s: s.endswith('.json'))
 class JsonFileLoader(BaseFileLoader):
     """
     Загрузчик для файлов формата JSON.
@@ -289,6 +316,10 @@ class JsonFileLoader(BaseFileLoader):
     """
 
     DEFAULT_FILE_PATH: str = './words.json'
+
+    @classmethod
+    def from_source(cls, source: str) -> Self:
+        return cls(file_path=source)
 
     def _load_from_file(self, file_object: TextIO) -> dict[str, str]:
         """
@@ -330,7 +361,7 @@ class JsonFileLoader(BaseFileLoader):
         )
 
 
-@loader_registry.register('http')
+@loader_registry.register(lambda s: s.startswith(('http://', 'https://')))
 class JsonNetworkLoader:
     """
     Загрузчик слов из сетевого источника по ссылке.
@@ -349,6 +380,19 @@ class JsonNetworkLoader:
             raise ValueError('Небезопасный URL. Используйте http или https.')
 
         self.url: str = url
+
+    @classmethod
+    def from_source(cls, source: str) -> Self:
+        """
+        Создаёт экземпляр загрузчика из источника.
+
+        Args:
+            source (str): URL источника.
+
+        Returns:
+            Self: Экземпляр JsonNetworkLoader.
+        """
+        return cls(url=source)
 
     def load_words(self) -> dict[str, str]:
         """

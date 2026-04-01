@@ -1,5 +1,4 @@
 import argparse
-import pathlib
 from typing import Literal
 from types import TracebackType
 
@@ -76,16 +75,9 @@ def get_loader(source: str) -> LoaderProtocol:
     Returns:
         LoaderProtocol: Экземпляр загрузчика.
     """
-    if source.startswith('http'):
-        identity = 'http'
-        args: dict[str, str] = {'url': source}
-    else:
-        identity = pathlib.Path(source).suffix
-        args = {'file_path': source}
+    loader_cls = loader_registry.get_loader(source)
 
-    loader_cls = loader_registry.get_loader(identity)
-
-    return loader_cls(**args)
+    return loader_cls.from_source(source)
 
 
 def main() -> None:

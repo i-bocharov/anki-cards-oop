@@ -32,7 +32,7 @@ class Anki:
         # Начата ли сессия тренировки до первой ошибки.
         self._session_active: bool = False
         # Время начала тренировки.
-        self._session_start_time: float | None = 0.0
+        self._session_start_time: float = 0.0
         # Количество правильных ответов.
         self._session_user_score: int = 0
         # Последнее выданное слово в сессии.
@@ -209,7 +209,7 @@ class Anki:
         # Вычисляем время сессии. Гарантируем минимальное значение для
         # корректной статистики.
         session_time = max(
-            time.time() - (self._session_start_time or 0), 0.001
+            time.time() - self._session_start_time, 0.001
         )
 
         self.last_session_stats = {
@@ -220,7 +220,7 @@ class Anki:
         # Сбрасываем состояние.
         self._session_active = False
         self._session_user_score = 0
-        self._session_start_time = None
+        self._session_start_time = 0.0
         self._last_session_word = None
 
     def add_word(self, word: str, translation: str) -> None:
