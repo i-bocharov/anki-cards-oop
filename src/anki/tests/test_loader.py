@@ -1,6 +1,8 @@
 import os
 import pathlib
+
 import pytest
+
 from anki.loader import TextFileLoader
 
 

@@ -1,6 +1,6 @@
-from collections.abc import Iterator
 import random
 import time
+from collections.abc import Iterator
 
 
 class TrainingSession:

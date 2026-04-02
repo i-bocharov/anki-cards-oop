@@ -1,5 +1,6 @@
-from anki.anki import Anki  # импорт из пакета anki, файла anki.py класса Anki
 import pytest
+
+from anki.anki import Anki  # импорт из пакета anki, файла anki.py класса Anki
 
 
 @pytest.mark.parametrize(

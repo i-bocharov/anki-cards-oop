@@ -1,12 +1,9 @@
 import argparse
-from typing import Literal
 from types import TracebackType
+from typing import Literal
 
 from anki.anki import Anki
-from anki.loader import (
-    loader_registry,
-    LoaderProtocol
-)
+from anki.loader import LoaderProtocol, loader_registry
 from anki.ui import TextUI
 
 

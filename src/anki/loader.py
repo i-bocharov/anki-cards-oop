@@ -1,6 +1,7 @@
-from pathlib import Path
-from typing import Protocol, Callable, TextIO, Self
 import json
+from pathlib import Path
+from typing import Callable, Protocol, Self, TextIO
+
 import requests
 
 

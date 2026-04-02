@@ -12,8 +12,38 @@ requires-python = ">=3.9"
 dependencies = ["requests"]
 
 [project.optional-dependencies]
-dev = ["pytest", "types-requests>=2.33.0", "mypy>=1.15.0"]
-
+dev = ["pytest", "types-requests>=2.33.0", "mypy>=1.15.0", "ruff>=0.9.0"]
 
 [project.scripts]
 anki = "anki.main:main"
+
+# ================================================
+# Ruff — линтер + сортировка импортов
+# ================================================
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I"] # Ошибки + предупреждения + pyflakes + isort
+
+[tool.ruff.lint.isort]
+known-first-party = ["anki"]
+
+# ================================================
+# Black — форматирование кода
+# ================================================
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+# ================================================
+# Mypy — проверка типов
+# ================================================
+[tool.mypy]
+python_version = "3.9"
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["requests.*"]
+ignore_missing_imports = true

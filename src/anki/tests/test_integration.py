@@ -1,8 +1,10 @@
 import os
 import pathlib
+
 import pytest
-from anki.loader import TextFileLoader
+
 from anki.anki import Anki
+from anki.loader import TextFileLoader
 
 
 @pytest.fixture()
