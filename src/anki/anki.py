@@ -25,7 +25,13 @@ class TrainingSession:
 
         Returns:
             str: Случайное слово для перевода.
+
+        Raises:
+            ValueError: Если сессия не активна.
         """
+        if not self.active:
+            raise ValueError('Сессия не активна. Начните новую тренировку.')
+
         word = self._anki.get_random_word()
 
         self._last_word = word
@@ -42,15 +48,39 @@ class TrainingSession:
 
         Returns:
             bool: True, если перевод корректен.
+
+        Raises:
+            ValueError: Если сессия не активна.
         """
-        return self._anki.check_translation(word, translation)
+        if not self.active:
+            raise ValueError('Сессия не активна. Начните новую тренировку.')
+
+        # Защита от накрутки: проверяем только последнее полученное слово.
+        if self._last_word is None or word != self._last_word:
+            raise ValueError(
+                'Сначала получите слово через get_random_word().'
+            )
+
+        is_correct = self._anki.check_translation(word, translation)
+
+        # Сбрасываем последнее слово после проверки
+        # Это предотвращает повторную проверку того же слова
+        self._last_word = None
+
+        return is_correct
 
     def end_session(self) -> None:
         """
         Завершает тренировочную сессию.
 
         Устанавливает флаг active в False и обновляет время окончания.
+
+        Raises:
+            ValueError: Если сессия уже завершена.
         """
+        if not self.active:
+            raise ValueError('Сессия уже завершена.')
+
         self.active = False
         self._end_time = time.time()
         self._anki.end_session()
@@ -82,11 +112,79 @@ class ZeroMistakesTraining(TrainingSession):
     Завершается при первом неправильном ответе.
     """
     def check_translation(self, word: str, translation: str) -> bool:
+        """
+        Проверяет перевод и завершает сессию при ошибке.
+
+        Args:
+            word (str): Слово для проверки.
+            translation (str): Перевод для проверки.
+
+        Returns:
+            bool: True, если перевод корректен.
+        """
         is_correct = super().check_translation(word, translation)
 
         if is_correct:
             self._user_score += 1
+            pass
         else:
+            self.end_session()
+
+        return is_correct
+
+
+class TimeLimitedTraining(TrainingSession):
+    """
+    Тренировка с ограничением по времени.
+
+    Завершается по истечении заданного лимита времени.
+    Позволяет пользователю дать последний ответ без ограничений.
+    """
+
+    def __init__(self, anki: 'Anki', time_limit: float = 60.0) -> None:
+        """
+        Инициализирует тренировку с ограничением по времени.
+
+        Args:
+            anki (Anki): Экземпляр игры Anki для работы со словами.
+            time_limit (float): Лимит времени в секундах. По умолчанию 60.0.
+        """
+        super().__init__(anki)
+        self._time_limit: float = time_limit
+
+    def _time_remaining(self) -> float:
+        """
+        Возвращает оставшееся время сессии.
+
+        Returns:
+            float: Оставшееся время в секундах.
+        """
+        elapsed = time.time() - self._start_time
+        return max(self._time_limit - elapsed, 0.0)
+
+    def check_translation(self, word: str, translation: str) -> bool:
+        """
+        Проверяет перевод с учётом ограничения по времени.
+
+        Позволяет пользователю дать последний ответ даже если время истекло.
+        Завершает сессию после проверки, если время вышло.
+
+        Args:
+            word (str): Слово для проверки.
+            translation (str): Перевод для проверки.
+
+        Returns:
+            bool: True, если перевод корректен.
+        """
+        is_correct = super().check_translation(word, translation)
+
+        if is_correct:
+            self._user_score += 1
+            # Сброс последнего слова уже в базовом классе.
+            pass
+
+        # Проверяем, истекло ли время после ответа.
+        if self._time_remaining() <= 0:
             self.end_session()
 
         return is_correct
@@ -280,6 +378,27 @@ class Anki:
         self._session_active = True
 
         return ZeroMistakesTraining(self)
+
+    def start_time_limited_training(
+        self, time_limit: float = 60.0
+    ) -> TimeLimitedTraining:
+        """
+        Начинает тренировку с ограничением по времени.
+
+        Args:
+            time_limit (float): Лимит времени в секундах. По умолчанию 60.0.
+
+        Returns:
+            TimeLimitedTraining: Объект сессии TimeLimitedTraining.
+        """
+        if self._session_active:
+            raise RuntimeError(
+                'Нельзя начать тренировку, если она уже начата.'
+            )
+
+        self._session_active = True
+
+        return TimeLimitedTraining(self, time_limit)
 
     def end_session(self) -> None:
         """

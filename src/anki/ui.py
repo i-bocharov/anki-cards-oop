@@ -34,6 +34,8 @@ class TextUI:
             (self.add_words, 'Добавить слова', lambda: True),
             (self.train_until_mistake, 'Тренировка до первой ошибки',
              lambda: len(self._anki_game) > 0),
+            (self.train_until_time_runs_out, 'Тренировка на время',
+             lambda: len(self._anki_game) > 0),
             (self.show_words, 'Показать все слова',
              lambda: len(self._anki_game) > 0),
             (self.find_translation, 'Найти перевод',
@@ -214,6 +216,85 @@ class TextUI:
                     f'Итоговый счёт: {user_stat["correct_answers"]}, '
                     f'время игры: {user_stat["total_time"]:.3f} секунд'
                 )
+                break
+
+    def train_until_time_runs_out(self) -> None:
+        """
+        Запускает режим тренировки с ограничением по времени.
+
+        Пользователь переводит слова в течение заданного времени.
+        Тренировка завершается по истечении времени или вводе STOP_WORD.
+        После завершения выводится статистика.
+        """
+        try:
+            time_input = input(
+                'Введите время тренировки в секундах (по умолчанию 60): '
+            ).strip()
+            time_limit = float(time_input) if time_input else 60.0
+        except ValueError:
+            print('Некорректное значение, используем 60 секунд.')
+            time_limit = 60.0
+
+        print(
+            f'Тренировка на время ({time_limit} секунд)! '
+            f'Чтобы завершить игру, введите: {self.STOP_WORD}'
+        )
+        training_session = self._anki_game.start_time_limited_training(
+            time_limit
+        )
+
+        while True:
+            try:
+                # Проверяем активность сессии (время могло истечь)
+                if not training_session.active:
+                    user_stat = training_session.get_stat()
+                    print(
+                        f'Время вышло! Итоговый счёт: '
+                        f'{user_stat["correct_answers"]}, '
+                        f'время игры: {user_stat["total_time"]:.3f} секунд'
+                    )
+                    break
+
+                word = training_session.get_random_word()
+
+                # Безопасное получение остатка времени (для тестов с Mock)
+                try:
+                    time_remaining = training_session._time_remaining()
+                    print(
+                        f'Переведите слово: {word} '
+                        f'(осталось {time_remaining:.1f} сек)'
+                    )
+                except (TypeError, AttributeError):
+                    print(f'Переведите слово: {word}')
+
+                translation = input().strip()
+                if translation.lower() == self.STOP_WORD.lower():
+                    training_session.end_session()
+                    user_stat = training_session.get_stat()
+                    print(
+                        f'Итоговый счёт: {user_stat["correct_answers"]}, '
+                        f'время игры: {user_stat["total_time"]:.3f} секунд'
+                    )
+                    break
+
+                is_correct = training_session.check_translation(
+                    word, translation
+                )
+                if is_correct:
+                    print('Все верно!')
+                else:
+                    print(
+                        f'Неправильно, правильный ответ: '
+                        f'{self._anki_game.get_translation(word)}'
+                    )
+
+            except ValueError as e:
+                print(f'Ошибка: {e}')
+                break
+            except KeyboardInterrupt:
+                print('\nТренировка прервана пользователем.')
+                if training_session.active:
+                    training_session.end_session()
                 break
 
     def find_translation(self) -> None:
