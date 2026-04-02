@@ -10,6 +10,7 @@ class LoaderProtocol(Protocol):
     Протокол для загрузчиков.
     Гарантирует наличие методов load/save/from_source.
     """
+
     def load_words(self) -> dict[str, str]: ...
     def save_words(self, words: dict[str, str]) -> None: ...
 
@@ -21,18 +22,14 @@ class LoaderRegistry:
     """
     Реестр загрузчиков для динамической регистрации классов.
     """
+
     def __init__(self) -> None:
-        self._registry: dict[
-            type[LoaderProtocol],
-            Callable[[str], bool]
-        ] = {}
+        self._registry: dict[type[LoaderProtocol], Callable[[str], bool]] = {}
 
     def register(
         self,
         predicate: Callable[[str], bool],
-    ) -> Callable[
-        [type[LoaderProtocol]], type[LoaderProtocol]
-    ]:
+    ) -> Callable[[type[LoaderProtocol]], type[LoaderProtocol]]:
         """
         Регистрирует класс загрузчика с функцией-предикат.
 
@@ -44,6 +41,7 @@ class LoaderRegistry:
             Callable[[type[LoaderProtocol]], type[LoaderProtocol]]:
                 Декоратор, который регистрирует класс и возвращает его.
         """
+
         def decorator(cls: type[LoaderProtocol]) -> type[LoaderProtocol]:
             self._registry[cls] = predicate
             return cls
@@ -132,16 +130,12 @@ class BaseFileLoader:
                 содержит нестроковые ключи/значения.
         """
         if not isinstance(words, dict):
-            raise ValueError(
-                'Значением параметра `words` должен быть словарь.'
-            )
+            raise ValueError('Значением параметра `words` должен быть словарь.')
 
         # Валидация содержимого словаря
         for key, value in words.items():
             if not isinstance(key, str) or not isinstance(value, str):
-                raise ValueError(
-                    'Ключи и значения словаря должны быть строками.'
-                )
+                raise ValueError('Ключи и значения словаря должны быть строками.')
 
         with self._file_path.open('w', encoding='utf-8') as f:
             self._save_to_file(words, f)
@@ -164,9 +158,7 @@ class BaseFileLoader:
         """
         raise NotImplementedError
 
-    def _save_to_file(
-            self, words: dict[str, str], file_object: TextIO
-    ) -> None:
+    def _save_to_file(self, words: dict[str, str], file_object: TextIO) -> None:
         """
         Реализует логику сохранения слов в определённом формате в файл.
 
@@ -232,9 +224,7 @@ class TextFileLoader(BaseFileLoader):
 
         return words
 
-    def _save_to_file(
-            self, words: dict[str, str], file_object: TextIO
-    ) -> None:
+    def _save_to_file(self, words: dict[str, str], file_object: TextIO) -> None:
         """
         Записывает словарь в файл в формате CSV.
 
@@ -245,9 +235,7 @@ class TextFileLoader(BaseFileLoader):
         for word, translation in words.items():
             # Санитизация данных: удаление переносов строк.
             clean_word = str(word).replace('\n', '').replace('\r', '')
-            clean_translation = str(translation).replace('\n', '').replace(
-                '\r', ''
-            )
+            clean_translation = str(translation).replace('\n', '').replace('\r', '')
             file_object.write(f'{clean_word},{clean_translation}\n')
 
 
@@ -290,9 +278,7 @@ class TSVFileLoader(BaseFileLoader):
 
         return words
 
-    def _save_to_file(
-            self, words: dict[str, str], file_object: TextIO
-    ) -> None:
+    def _save_to_file(self, words: dict[str, str], file_object: TextIO) -> None:
         """
         Записывает словарь в файл в формате TSV.
 
@@ -302,9 +288,7 @@ class TSVFileLoader(BaseFileLoader):
         """
         for word, translation in words.items():
             clean_word = str(word).replace('\n', '').replace('\r', '')
-            clean_translation = str(translation).replace('\n', '').replace(
-                '\r', ''
-            )
+            clean_translation = str(translation).replace('\n', '').replace('\r', '')
             file_object.write(f'{clean_word}\t{clean_translation}\n')
 
 
@@ -344,9 +328,7 @@ class JsonFileLoader(BaseFileLoader):
 
         return words
 
-    def _save_to_file(
-            self, words: dict[str, str], file_object: TextIO
-    ) -> None:
+    def _save_to_file(self, words: dict[str, str], file_object: TextIO) -> None:
         """
         Записывает словарь в файл в формате JSON.
 
@@ -354,12 +336,7 @@ class JsonFileLoader(BaseFileLoader):
             words (dict[str, str]): Словарь для сохранения.
             file_object (TextIO): Объект файла для записи.
         """
-        json.dump(
-            words,
-            file_object,
-            indent=2,
-            ensure_ascii=False
-        )
+        json.dump(words, file_object, indent=2, ensure_ascii=False)
 
 
 @loader_registry.register(lambda s: s.startswith(('http://', 'https://')))
@@ -370,6 +347,7 @@ class JsonNetworkLoader:
     Получает JSON данные по указанному URL и парсит их в словарь.
     Не наследуется от BaseFileLoader, так как работает с сетью, а не с файлами.
     """
+
     def __init__(self, url: str) -> None:
         """
         Инициализирует загрузчик с указанным URL.

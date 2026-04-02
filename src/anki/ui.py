@@ -32,14 +32,26 @@ class TextUI:
         ] = [
             (self.start_game, 'Начать игру', lambda: len(self._anki_game) > 0),
             (self.add_words, 'Добавить слова', lambda: True),
-            (self.train_until_mistake, 'Тренировка до первой ошибки',
-             lambda: len(self._anki_game) > 0),
-            (self.train_until_time_runs_out, 'Тренировка на время',
-             lambda: len(self._anki_game) > 0),
-            (self.show_words, 'Показать все слова',
-             lambda: len(self._anki_game) > 0),
-            (self.find_translation, 'Найти перевод',
-             lambda: len(self._anki_game) > 0),
+            (
+                self.train_until_mistake,
+                'Тренировка до первой ошибки',
+                lambda: len(self._anki_game) > 0,
+            ),
+            (
+                self.train_until_time_runs_out,
+                'Тренировка на время',
+                lambda: len(self._anki_game) > 0,
+            ),
+            (
+                self.show_words,
+                'Показать все слова',
+                lambda: len(self._anki_game) > 0,
+            ),
+            (
+                self.find_translation,
+                'Найти перевод',
+                lambda: len(self._anki_game) > 0,
+            ),
             (self.stop, 'Выход', lambda: True),
         ]
 
@@ -87,9 +99,7 @@ class TextUI:
                     break
 
                 # Проверяем правильность перевода через метод Anki.
-                is_correct = self._anki_game.check_translation(
-                    word, user_input
-                )
+                is_correct = self._anki_game.check_translation(word, user_input)
 
                 if is_correct:
                     print('Верно!')
@@ -205,12 +215,8 @@ class TextUI:
             else:
                 user_stat = training_session.get_stat()
                 print(
-                    f'Неправильно, игра окончена, ваш вариант {
-                        repr(translation)
-                    } '
-                    f'правильный перевод: {
-                        self._anki_game.get_translation(word)
-                    }'
+                    f'Неправильно, игра окончена, ваш вариант {repr(translation)} '
+                    f'правильный перевод: {self._anki_game.get_translation(word)}'
                 )
                 print(
                     f'Итоговый счёт: {user_stat["correct_answers"]}, '
@@ -239,9 +245,7 @@ class TextUI:
             f'Тренировка на время ({time_limit} секунд)! '
             f'Чтобы завершить игру, введите: {self.STOP_WORD}'
         )
-        training_session = self._anki_game.start_time_limited_training(
-            time_limit
-        )
+        training_session = self._anki_game.start_time_limited_training(time_limit)
 
         while True:
             try:
@@ -261,8 +265,7 @@ class TextUI:
                 try:
                     time_remaining = training_session._time_remaining()
                     print(
-                        f'Переведите слово: {word} '
-                        f'(осталось {time_remaining:.1f} сек)'
+                        f'Переведите слово: {word} (осталось {time_remaining:.1f} сек)'
                     )
                 except (TypeError, AttributeError):
                     print(f'Переведите слово: {word}')
@@ -277,9 +280,7 @@ class TextUI:
                     )
                     break
 
-                is_correct = training_session.check_translation(
-                    word, translation
-                )
+                is_correct = training_session.check_translation(word, translation)
                 if is_correct:
                     print('Все верно!')
                 else:
@@ -349,9 +350,7 @@ class TextUI:
             menu_choices: list[str] = []
             commands: dict[str, Callable[..., None]] = {}
 
-            for i, (func, description) in enumerate(
-                self.get_available_commands(), 1
-            ):
+            for i, (func, description) in enumerate(self.get_available_commands(), 1):
                 menu_choices.append(f'{i}. {description}')
                 commands[str(i)] = func
 

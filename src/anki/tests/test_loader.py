@@ -14,7 +14,7 @@ def tmp_file():
     # Создаём объект пути до файла.
     path = pathlib.Path('./test_words.txt')
     # Сохраняем слова в файл.
-    path.write_text("hello,привет\n", encoding="utf-8")
+    path.write_text('hello,привет\n', encoding='utf-8')
     # Возвращаем путь до файла из фикстуры.
     yield str(path)
 
@@ -44,11 +44,7 @@ def test_save_words_saves_words_as_comma_separated_values(tmp_save_file):
     """
     # Подготавливаем данные и загрузчик.
     loader = TextFileLoader(file_path=tmp_save_file)
-    test_words = {
-        'hello': 'привет',
-        'world': 'мир',
-        'python': 'питон'
-    }
+    test_words = {'hello': 'привет', 'world': 'мир', 'python': 'питон'}
 
     # Выполняем сохранение
     loader.save_words(test_words)
@@ -75,14 +71,10 @@ def test_save_words_saves_words_as_comma_separated_values(tmp_save_file):
 
         # Проверка отсутствия лишних пробелов (данные очищены)
         assert word == word.strip(), 'В слове есть лишние пробелы'
-        assert translation == translation.strip(), (
-            'В переводе есть лишние пробелы'
-        )
+        assert translation == translation.strip(), 'В переводе есть лишние пробелы'
 
         # Проверка отсутствия переносов строк внутри данных
-        assert '\n' not in word and '\r' not in word, (
-            'В слове есть переносы строк'
-        )
+        assert '\n' not in word and '\r' not in word, 'В слове есть переносы строк'
         assert '\n' not in translation and '\r' not in translation, (
             'В переводе есть переносы строк'
         )

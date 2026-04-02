@@ -39,9 +39,7 @@ def test_integration(tmp_integration_file):
     anki = Anki(words=loaded_words)
 
     # Проверяем, что свойство words возвращает правильные слова.
-    assert anki.words == {}, (
-        'Anki должен быть пустым после инициализации'
-    )
+    assert anki.words == {}, 'Anki должен быть пустым после инициализации'
 
     # Добавляем новое слово через add_word().
     anki.add_word('hello', 'привет')
@@ -60,9 +58,7 @@ def test_integration(tmp_integration_file):
     content = pathlib.Path(tmp_integration_file).read_text(encoding='utf-8')
     lines = content.strip().split('\n')
 
-    assert len(lines) == 2, (
-        f'Ожидалось 2 строки в файле, получено {len(lines)}'
-    )
+    assert len(lines) == 2, f'Ожидалось 2 строки в файле, получено {len(lines)}'
 
     assert 'hello,привет' in lines, 'Слово "hello" не найдено в файле'
     assert 'world,мир' in lines, 'Слово "world" не найдено в файле'

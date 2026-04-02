@@ -8,7 +8,7 @@ version = "0.0.1"
 authors = [{ name = "Igor Bocharov", email = "igor.bocharov56@yandex.ru" }]
 description = "Игра Карты Anki"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 dependencies = ["requests"]
 
 [project.optional-dependencies]
@@ -22,7 +22,7 @@ anki = "anki.main:main"
 # ================================================
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I"] # Ошибки + предупреждения + pyflakes + isort
@@ -30,20 +30,25 @@ select = ["E", "W", "F", "I"] # Ошибки + предупреждения + py
 [tool.ruff.lint.isort]
 known-first-party = ["anki"]
 
-# ================================================
-# Black — форматирование кода
-# ================================================
-[tool.black]
-line-length = 88
-target-version = ["py39"]
+# Настройки форматирования
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+skip-magic-trailing-comma = false
 
 # ================================================
 # Mypy — проверка типов
 # ================================================
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.12"
 strict = true
 
 [[tool.mypy.overrides]]
 module = ["requests.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["*.tests.*", "test_*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false

@@ -14,6 +14,7 @@ class GameContext:
     Гарантирует загрузку слов при входе в контекст и сохранение при выходе,
     даже если в теле контекста возникли ошибки.
     """
+
     def __init__(self, loader: LoaderProtocol, anki: Anki) -> None:
         """
         Инициализация контекстного менеджера.
@@ -37,10 +38,10 @@ class GameContext:
         return self
 
     def __exit__(
-            self,
-            exc_type: type[BaseException] | None,
-            exc_val: BaseException | None,
-            exc_tb: TracebackType | None
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> Literal[False]:
         """
         Сохраняет слова через загрузчик при выходе из контекста.
@@ -101,5 +102,5 @@ def main() -> None:
         ui.main_loop()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

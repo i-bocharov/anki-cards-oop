@@ -10,6 +10,7 @@ class TrainingSession:
     Управляет состоянием тренировки: время, счёт, последнее слово.
     Делегирует работу со словарём классу Anki.
     """
+
     def __init__(self, anki: 'Anki') -> None:
         self.active: bool = True
 
@@ -57,9 +58,7 @@ class TrainingSession:
 
         # Защита от накрутки: проверяем только последнее полученное слово.
         if self._last_word is None or word != self._last_word:
-            raise ValueError(
-                'Сначала получите слово через get_random_word().'
-            )
+            raise ValueError('Сначала получите слово через get_random_word().')
 
         is_correct = self._anki.check_translation(word, translation)
 
@@ -99,10 +98,7 @@ class TrainingSession:
         else:
             total_time = self._end_time - self._start_time
 
-        return {
-            "correct_answers": self._user_score,
-            "total_time":  total_time
-        }
+        return {'correct_answers': self._user_score, 'total_time': total_time}
 
 
 class ZeroMistakesTraining(TrainingSession):
@@ -111,6 +107,7 @@ class ZeroMistakesTraining(TrainingSession):
 
     Завершается при первом неправильном ответе.
     """
+
     def check_translation(self, word: str, translation: str) -> bool:
         """
         Проверяет перевод и завершает сессию при ошибке.
@@ -286,8 +283,7 @@ class Anki:
         """
         if not isinstance(word, str):
             raise ValueError(
-                'Слово должно быть строкой, '
-                f'получено: {type(word).__name__} ({word!r})'
+                f'Слово должно быть строкой, получено: {type(word).__name__} ({word!r})'
             )
 
         return word.strip().lower()
@@ -313,8 +309,7 @@ class Anki:
         """
         if not isinstance(data, dict):
             raise ValueError(
-                f'Параметр words должен быть словарём, '
-                f'получено: {type(data).__name__}'
+                f'Параметр words должен быть словарём, получено: {type(data).__name__}'
             )
 
         normalized: dict[str, str] = {}
@@ -357,9 +352,7 @@ class Anki:
         """
         # Защита от изменения слов во время активной сессии.
         if self._session_active:
-            raise ValueError(
-                'Нельзя менять слова во время активной тренировки.'
-            )
+            raise ValueError('Нельзя менять слова во время активной тренировки.')
 
         # Делегируем валидацию и нормализацию защищённому методу
         self._words = self._normalize_dict(value)
@@ -372,9 +365,7 @@ class Anki:
             TrainingSession: Объект сессии ZeroMistakesTraining.
         """
         if self._session_active:
-            raise RuntimeError(
-                'Нельзя начать тренировку, если она уже начата.'
-            )
+            raise RuntimeError('Нельзя начать тренировку, если она уже начата.')
         self._session_active = True
 
         return ZeroMistakesTraining(self)
@@ -392,9 +383,7 @@ class Anki:
             TimeLimitedTraining: Объект сессии TimeLimitedTraining.
         """
         if self._session_active:
-            raise RuntimeError(
-                'Нельзя начать тренировку, если она уже начата.'
-            )
+            raise RuntimeError('Нельзя начать тренировку, если она уже начата.')
 
         self._session_active = True
 
@@ -438,9 +427,7 @@ class Anki:
             ValueError: Если коллекция слов пуста.
         """
         if not self._words:
-            raise ValueError(
-                'Коллекция слов пуста. Добавьте слова.'
-            )
+            raise ValueError('Коллекция слов пуста. Добавьте слова.')
 
         return random.choice(list(self._words.keys()))
 
@@ -455,9 +442,7 @@ class Anki:
             ValueError: Если коллекция слов пуста.
         """
         if not self._words:
-            raise ValueError(
-                'Коллекция слов пуста. Добавьте слова перед началом игры.'
-            )
+            raise ValueError('Коллекция слов пуста. Добавьте слова перед началом игры.')
 
         return random.choice(list(self._words.items()))
 
@@ -477,8 +462,7 @@ class Anki:
         """
         if not isinstance(word, str):
             raise ValueError(
-                f'Параметр word должен быть строкой, '
-                f'получено: {type(word).__name__}'
+                f'Параметр word должен быть строкой, получено: {type(word).__name__}'
             )
 
         if not isinstance(translation, str):
@@ -491,9 +475,7 @@ class Anki:
         normalized_translation = self.normalize_word(translation)
 
         if normalized_word not in self._words:
-            raise ValueError(
-                f'Слово "{normalized_word}" отсутствует в коллекции.'
-            )
+            raise ValueError(f'Слово "{normalized_word}" отсутствует в коллекции.')
 
         return self._words[normalized_word] == normalized_translation
 
@@ -512,15 +494,12 @@ class Anki:
         """
         if not isinstance(word, str):
             raise ValueError(
-                f'Параметр word должен быть строкой, '
-                f'получено: {type(word).__name__}'
+                f'Параметр word должен быть строкой, получено: {type(word).__name__}'
             )
 
         normalized_word = self.normalize_word(word)
 
         if normalized_word not in self._words:
-            raise ValueError(
-                f'Слово "{normalized_word}" отсутствует в коллекции.'
-            )
+            raise ValueError(f'Слово "{normalized_word}" отсутствует в коллекции.')
 
         return self._words[normalized_word]
