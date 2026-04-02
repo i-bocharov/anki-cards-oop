@@ -5,17 +5,50 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "anki"
 version = "0.0.1"
-authors = [
-	{ name="Это вы!", email="author@example.com" }
-]
+authors = [{ name = "Igor Bocharov", email = "igor.bocharov56@yandex.ru" }]
 description = "Игра Карты Anki"
 readme = "README.md"
-requires-python = ">=3.9"
-dependencies = [
-	"pytest"
-]
+requires-python = ">=3.12"
+dependencies = ["requests"]
 
+[project.optional-dependencies]
+dev = ["pytest", "types-requests>=2.33.0", "mypy>=1.15.0", "ruff>=0.9.0"]
 
 [project.scripts]
 anki = "anki.main:main"
 
+# ================================================
+# Ruff — линтер + сортировка импортов
+# ================================================
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I"] # Ошибки + предупреждения + pyflakes + isort
+
+[tool.ruff.lint.isort]
+known-first-party = ["anki"]
+
+# Настройки форматирования
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
+# ================================================
+# Mypy — проверка типов
+# ================================================
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["requests.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["*.tests.*", "test_*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
