@@ -1,5 +1,4 @@
-import textwrap
-from typing import TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from anki.anki import Anki
@@ -16,18 +15,6 @@ class TextUI:
     # Константа для завершения игры.
     STOP_WORD: str = 'СТОП'
 
-    # Меню приложения.
-    # dedent убирает отступы кода, чтобы меню выглядело ровно в консоли.
-    # \ после ''' предотвращает появление лишней пустой строки в начале.
-    MENU = textwrap.dedent('''\
-        Меню:
-        1. Начать игру
-        2. Добавить слова
-        3. Тренировка до первой ошибки
-        4. Вывод всех слов
-        5. Выход
-        ''')
-
     def __init__(self, anki_game: 'Anki') -> None:
         """
         Инициализирует интерфейс с экземпляром игры Anki.
@@ -38,9 +25,25 @@ class TextUI:
         Raises:
             ValueError: Если переданный аргумент не является экземпляром Anki.
         """
-
         # Сохраняем ссылку на экземпляр Anki для использования в методах.
         self._anki_game: 'Anki' = anki_game
+        self._is_running: bool = False
+
+        # (Функция, описание, условие_видимости)
+        self._command_definition: list[
+            tuple[Callable[..., None], str, Callable[..., bool]]
+        ] = [
+            (self.start_game, 'Начать игру', lambda: len(self._anki_game) > 0),
+            (self.add_words, 'Добавить слова', lambda: True),
+            (self.train_until_mistake, 'Тренировка до первой ошибки',
+                lambda: len(self._anki_game) > 0),
+            (self.show_words, 'Показать все слова',
+                lambda: len(self._anki_game) > 0),
+            (self.stop, 'Выход', lambda: True),
+        ]
+
+    def stop(self) -> None:
+        self._is_running = False
 
     def start_game(self) -> None:
         """
@@ -227,6 +230,16 @@ class TextUI:
         print(f'Время игры: {stats["total_time"]:.2f} сек.')
         print('=' * 40)
 
+    def get_available_commands(self) -> list[tuple[Callable[..., None], str]]:
+        """Возвращает доступные команды для меню."""
+        commands = []
+
+        for func, description, is_visible in self._command_definition:
+            if is_visible():
+                commands.append((func, description))
+
+        return commands
+
     def main_loop(self) -> None:
         """
         Запускает главный цикл пользовательского интерфейса.
@@ -234,40 +247,32 @@ class TextUI:
         Отображает меню и обрабатывает выбор пользователя.
         Завершается при выборе пункта "Выход".
         """
-        while True:
-            try:
-                # Отрисовываем меню.
-                print(self.MENU)
+        self._is_running = True
 
-                # Получаем выбор пользователя.
-                choice = input('Пункт меню: ').strip()
+        # commands = {
+        #     "1": self.start_game,  # Начать игру.
+        #     "2": self.add_words,  # Добавить слова.
+        #     "3": self.train_until_mistake,  # Тренировка до первой ошибки.
+        #     "4": self.show_words,  # Вывод всех слов.
+        #     "5": self.stop,  # Выход.
+        # }
 
-                # Обрабатываем выбор.
-                if choice == '1':
-                    # Начать игру.
-                    self.start_game()
-                elif choice == '2':
-                    # Добавить слова.
-                    self.add_words()
-                elif choice == '3':
-                    # Тренировка до первой ошибки (заглушка).
-                    self.train_until_mistake()
-                elif choice == '4':
-                    # Вывод всех слов.
-                    self.show_words()
-                elif choice == '5':
-                    # Выход.
-                    print('Выход из программы.')
-                    break
-                else:
-                    # Неверный выбор.
-                    print('Неизвестный пункт меню.')
+        while self._is_running:
+            menu_choices: list[str] = []
+            commands = {}
 
-            except KeyboardInterrupt:
-                # Обрабатываем принудительное завершение.
-                print('\nПрограмма прервана пользователем.')
-                break
-            except EOFError:
-                # Обрабатываем конец ввода.
-                print('\nВвод завершён.')
-                break
+            for i, (func, description) in enumerate(
+                self.get_available_commands(), 1
+            ):
+                menu_choices.append(f"{i}. {description}")
+                commands[str(i)] = func
+
+            # Показываем меню
+            print("Меню:\n" + "\n".join(menu_choices))
+            choice = input("Выберите пункт: ")
+
+            if choice in commands:
+                commands[choice]()
+            else:
+                print("Неверный пункт меню")
+            print()
