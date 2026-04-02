@@ -21,28 +21,33 @@ class TextUI:
 
         Args:
             anki_game ('Anki'): Экземпляр класса Anki для игровой логики.
-
-        Raises:
-            ValueError: Если переданный аргумент не является экземпляром Anki.
         """
         # Сохраняем ссылку на экземпляр Anki для использования в методах.
         self._anki_game: 'Anki' = anki_game
         self._is_running: bool = False
 
-        # (Функция, описание, условие_видимости)
+        # (Функция-обработчик, описание, условие_видимости)
         self._command_definition: list[
             tuple[Callable[..., None], str, Callable[..., bool]]
         ] = [
             (self.start_game, 'Начать игру', lambda: len(self._anki_game) > 0),
             (self.add_words, 'Добавить слова', lambda: True),
             (self.train_until_mistake, 'Тренировка до первой ошибки',
-                lambda: len(self._anki_game) > 0),
+             lambda: len(self._anki_game) > 0),
             (self.show_words, 'Показать все слова',
-                lambda: len(self._anki_game) > 0),
+             lambda: len(self._anki_game) > 0),
+            (self.find_translation, 'Найти перевод',
+             lambda: len(self._anki_game) > 0),
             (self.stop, 'Выход', lambda: True),
         ]
 
     def stop(self) -> None:
+        """
+        Останавливает главный цикл приложения.
+
+        Устанавливает флаг _is_running в False, что приводит к завершению
+        цикла main_loop().
+        """
         self._is_running = False
 
     def start_game(self) -> None:
@@ -230,9 +235,38 @@ class TextUI:
         print(f'Время игры: {stats["total_time"]:.2f} сек.')
         print('=' * 40)
 
+    def find_translation(self) -> None:
+        """
+        Находит и выводит перевод для указанного слова.
+
+        Запрашивает у пользователя слово для поиска.
+        Проверяет наличие слова в словаре игры.
+        Выводит перевод, если слово найдено, или сообщение об отсутствии.
+        """
+        word_input = input('\nВведите слово для поиска: ').strip()
+
+        # Проверяем на завершающее слово.
+        if word_input.lower() == self.STOP_WORD.lower():
+            print('Поиск отменён.')
+            return
+
+        try:
+            translation = self._anki_game.get_translation(word_input)
+            print(f'Перевод слова "{word_input}": {translation}')
+        except ValueError as e:
+            print(f'Слово не найдено: {e}')
+
     def get_available_commands(self) -> list[tuple[Callable[..., None], str]]:
-        """Возвращает доступные команды для меню."""
-        commands = []
+        """
+        Возвращает доступные команды для меню.
+
+        Фильтрует команды по условию видимости (предикату).
+
+        Returns:
+            list[tuple[Callable[..., None], str]]: Список кортежей
+                (функция-обработчик, описание команды).
+        """
+        commands: list[tuple[Callable[..., None], str]] = []
 
         for func, description, is_visible in self._command_definition:
             if is_visible():
@@ -249,30 +283,22 @@ class TextUI:
         """
         self._is_running = True
 
-        # commands = {
-        #     "1": self.start_game,  # Начать игру.
-        #     "2": self.add_words,  # Добавить слова.
-        #     "3": self.train_until_mistake,  # Тренировка до первой ошибки.
-        #     "4": self.show_words,  # Вывод всех слов.
-        #     "5": self.stop,  # Выход.
-        # }
-
         while self._is_running:
             menu_choices: list[str] = []
-            commands = {}
+            commands: dict[str, Callable[..., None]] = {}
 
             for i, (func, description) in enumerate(
                 self.get_available_commands(), 1
             ):
-                menu_choices.append(f"{i}. {description}")
+                menu_choices.append(f'{i}. {description}')
                 commands[str(i)] = func
 
             # Показываем меню
-            print("Меню:\n" + "\n".join(menu_choices))
-            choice = input("Выберите пункт: ")
+            print('Меню:\n' + '\n'.join(menu_choices))
+            choice = input('Выберите пункт: ')
 
             if choice in commands:
                 commands[choice]()
             else:
-                print("Неверный пункт меню")
+                print('Неверный пункт меню')
             print()
