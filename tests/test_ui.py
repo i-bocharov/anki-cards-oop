@@ -32,18 +32,58 @@ def anki_with_words(anki_instance):
     return anki_instance
 
 
-def test_TextUI_class_has_MENU_attribute(ui_cls):
-    """В классе TextUI должен быть атрибут `MENU`."""
-    assert hasattr(ui_cls, 'MENU'), (
-        "В классе TextUI должен быть определён аттрибут класса `MENU`"
+@pytest.fixture()
+def exit_choice_finder():
+    def _exit_choice_finder(ui):
+        commands = ui.get_available_commands()
+        for idx, (func, desc) in enumerate(commands, 1):
+            if func == ui.stop:
+                return str(idx)
+        raise ValueError("Нет способа остановить игру")
+    return _exit_choice_finder
+
+
+def test_TextUI_class_does_not_have_MENU_attribute(ui_cls):
+    """В классе TextUI НЕ должено быть атрибут `MENU` - теперь он генерируется динамически."""
+    assert hasattr(ui_cls, 'MENU') is False, (
+        "В классе TextUI не должено быть определёно аттрибута класса `MENU` - меню формируется динамически."
     )
 
 
-def test_MENU_attribute_is_not_empty(ui_cls):
-    """Атрибут `MENU` класса не должен быть пустым."""
-    assert ui_cls.MENU != '', (
-        "Атрибут `MENU` класса TextUI не должен быть пустым"
+def test_TextUI_class_has_stop_method(ui_cls):
+    """В классе TextUI должен быть метод `stop` для остановки главного цикла."""
+    assert hasattr(ui_cls, 'stop'), (
+        "В классе TextUI должен быть определён метод `stop` для остановки главного цикла."
     )
+
+
+def test_TextUI_toggles_is_running_flag(ui_cls, anki_instance):
+    """Метод `stop` должен выставлять значение флага `is_running` в False"""
+    ui = ui_cls(anki_instance)
+    ui._is_running = True
+
+    ui.stop()
+
+    assert ui._is_running is False, (
+        "Метод `stop` должен выставлять значение флага `is_running` в False"
+    )
+
+def test_commands_definition_attribute_is_defined_at_initialization(ui_cls, anki_instance):
+    """Атрибут `_command_definition` класса не должен быть пустым."""
+    ui = ui_cls(anki_instance)
+    assert hasattr(ui, "_command_definition"), (
+        "Убедитесь, что при создании экземпляра класса TextUI инициализируется защищённый атрибут `_command_definition`"
+    )
+    for func, desc, predicate in ui._command_definition:
+        assert callable(func), (
+            "Убедитесь, что первым элементом в кортеже команд из `_command_definition` используется функция"
+        )
+        assert isinstance(desc, str), (
+            "Убедитесь, что вторым элементом в кортеже команд из `_command_definition` используется строка"
+        )
+        assert callable(predicate), (
+            "Убедитесь, что третьим элементом в кортеже команд из `_command_definition` используется функция"
+        )
 
 
 def test_TextUI_class_has_STOP_WORD_attribute(ui_cls):
@@ -248,16 +288,16 @@ def test_TextUI_class_train_until_mistake_method(ui_cls, anki_cls, monkeypatch, 
         "Метод `start_session` должен использовать методы экземпляра класса `Anki` для начала тренировки"
     )
 
-def test_TextUI_class_main_loop_method_shows_menu(ui_cls, anki_instance, monkeypatch, capsys):
+def test_TextUI_class_main_loop_method_shows_menu(ui_cls, anki_with_words, exit_choice_finder, monkeypatch, capsys):
     """Проверяет метод main_loop на предмет вывода меню"""
-    ui = ui_cls(anki_instance)
-
     # меры предосторожности
-    monkeypatch.setattr(ui, "start_game", Mock())
-    monkeypatch.setattr(ui, "add_words", Mock())
-    monkeypatch.setattr(ui, "show_words", Mock())
+    monkeypatch.setattr(ui_cls, "start_game", Mock())
+    monkeypatch.setattr(ui_cls, "add_words", Mock())
+    monkeypatch.setattr(ui_cls, "show_words", Mock())
 
-    inputs = ["5"]  # Выход
+    ui = ui_cls(anki_with_words)
+
+    inputs = [exit_choice_finder(ui)]  # Выход
     inputs = iter(inputs)
 
     monkeypatch.setattr('builtins.input', lambda x=None: next(inputs))
@@ -269,25 +309,31 @@ def test_TextUI_class_main_loop_method_shows_menu(ui_cls, anki_instance, monkeyp
             "Выполнение метода `main_loop` должно прекращаться после ввода пункта меню для выхода."
         )
     output = capsys.readouterr().out
-    assert ui_cls.MENU in output, "Меню пользовательского интерфейса должно выводиться при выполнении метода `main_loop`."
+    
+    for (func, desc) in ui.get_available_commands():
+        assert desc in output, (
+            "Пункт меню {desc} пользовательского интерфейса должен выводиться при выполнении метода `main_loop`."
+        )
 
 
-def test_TextUI_class_main_loop_method_handles_user_choices(ui_cls, anki_instance, monkeypatch, capsys):
+def test_TextUI_class_main_loop_method_handles_user_choices(ui_cls, anki_with_words, exit_choice_finder, monkeypatch, capsys):
     """Проверяет метод main_loop на предмет вывода меню"""
-    ui = ui_cls(anki_instance)
-
     start_game_mock = Mock()
     add_words_mock = Mock()
     show_words_mock = Mock()
     train_until_mistake_mock = Mock()
+    find_translation_mock = Mock()
 
-    monkeypatch.setattr(ui, "start_game", start_game_mock)
-    monkeypatch.setattr(ui, "add_words", add_words_mock)
-    monkeypatch.setattr(ui, "show_words", show_words_mock)
-    monkeypatch.setattr(ui, "train_until_mistake", train_until_mistake_mock)
+    monkeypatch.setattr(ui_cls, "start_game", start_game_mock)
+    monkeypatch.setattr(ui_cls, "add_words", add_words_mock)
+    monkeypatch.setattr(ui_cls, "show_words", show_words_mock)
+    monkeypatch.setattr(ui_cls, "train_until_mistake", train_until_mistake_mock)
+    monkeypatch.setattr(ui_cls, "find_translation", find_translation_mock)
 
-    # Старт игры, добавление слов, нереализованная фича, показ всех слов, выход
-    inputs = ["1", "2", "3", "4", "5"]  
+    ui = ui_cls(anki_with_words)
+
+    # Старт игры, добавление слов, тренировка, поиск перевода, показ всех слов, выход
+    inputs = ["1", "2", "3", "4", "5", exit_choice_finder(ui)]  
     inputs = iter(inputs)
 
     monkeypatch.setattr('builtins.input', lambda x=None: next(inputs))
@@ -325,3 +371,64 @@ def test_TextUI_class_main_loop_method_handles_user_choices(ui_cls, anki_instanc
         assert False, (
             f"Во время проверки метода `main_loop`, метод `train_until_mistake` был вызван {train_until_mistake_mock.call_count} раз, а должен был всего 1 раз."
         )
+
+    try:
+        find_translation_mock.assert_called_once()
+    except AssertionError:
+        assert False, (
+            f"Во время проверки метода `main_loop`, метод `find_translation` был вызван {find_translation.call_count} раз, а должен был всего 1 раз."
+        )
+
+
+def test_TextUI_class_find_translation_method_known_word(ui_cls, anki_instance, monkeypatch, capsys):
+    """Проверяет работу метода `find_translation` - должен возвращать перевод для существующего слова"""
+    anki_instance.add_word("python", "питон")
+
+    ui = ui_cls(anki_instance)
+
+    inputs = ["python"] 
+    inputs = iter(inputs)
+
+    monkeypatch.setattr('builtins.input', lambda x=None: next(inputs))
+    
+    try:
+        ui.find_translation()
+    except StopIteration:
+        assert False, (
+            "Выполнение метода `find_translation` должно прекращаться после вывода информации"
+            " о переводе или его отсутсвии."
+        )
+
+    output = capsys.readouterr().out
+
+    assert output, "Метод `find_translation` должен выводить информацию для пользователя в стандартный поток вывода."
+    assert "питон" in output, (
+        "Метод `find_translation` должен вывести перевод для существующего слова"
+    )
+
+
+def test_TextUI_class_find_translation_method_unknown_word(ui_cls, anki_instance, monkeypatch, capsys):
+    """Проверяет работу метода `find_translation` - не должен возвращать переводы в случае несуществсующего слова"""
+    anki_instance.add_word("hello", "привет")
+
+    ui = ui_cls(anki_instance)
+
+    inputs = ["python"] 
+    inputs = iter(inputs)
+
+    monkeypatch.setattr('builtins.input', lambda x=None: next(inputs))
+    
+    try:
+        ui.find_translation()
+    except StopIteration:
+        assert False, (
+            "Выполнение метода `find_translation` должно прекращаться после вывода информации"
+            " о переводе или его отсутсвии."
+        )
+
+    output = capsys.readouterr().out
+
+    assert output, "Метод `find_translation` должен выводить информацию для пользователя в стандартный поток вывода."
+    assert "привет" not in output, (
+        "Метод `find_translation` не должен выводить перевод для несуществующего слова"
+    )
